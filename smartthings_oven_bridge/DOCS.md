@@ -116,6 +116,8 @@ If the callback is not ready:
 
 1. In the add-on UI, click **Start OAuth login**.
    This intentionally escapes the Home Assistant ingress iframe because the SmartThings login flow cannot complete inside the sandboxed ingress frame.
+   Start the flow and finish it in the same browser profile and tab family that opened the add-on UI.
+   The callback depends on the active Home Assistant ingress session cookie.
 2. Sign in to SmartThings and approve access.
 3. Let SmartThings redirect back into Home Assistant.
 4. Return to the add-on UI.

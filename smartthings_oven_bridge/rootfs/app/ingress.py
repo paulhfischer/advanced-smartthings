@@ -2,13 +2,18 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from collections.abc import Sequence
+from typing import Literal
 from urllib.parse import urlencode
 
 from fastapi import Request
+from fastapi.responses import Response
 
 
 QueryScalar = str | int | float | bool
 QueryValue = QueryScalar | Sequence[QueryScalar] | None
+IngressCookieSameSite = Literal["lax", "strict"]
+INGRESS_SESSION_COOKIE = "ingress_session"
+INGRESS_COOKIE_PATH = "/api/hassio_ingress/"
 
 
 def get_ingress_base_path(request: Request) -> str | None:
@@ -52,6 +57,41 @@ def build_external_ui_url(
         return None
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
     return f"{scheme}://{host}{ui_url(request, route_path, query=query)}"
+
+
+def relax_ingress_session_cookie(response: Response, request: Request) -> bool:
+    return set_ingress_session_cookie(response, request, samesite="lax")
+
+
+def restore_ingress_session_cookie(response: Response, request: Request) -> bool:
+    return set_ingress_session_cookie(response, request, samesite="strict")
+
+
+def set_ingress_session_cookie(
+    response: Response,
+    request: Request,
+    *,
+    samesite: IngressCookieSameSite,
+) -> bool:
+    if get_ingress_base_path(request) is None:
+        return False
+
+    session = request.cookies.get(INGRESS_SESSION_COOKIE)
+    if not session:
+        return False
+
+    response.set_cookie(
+        key=INGRESS_SESSION_COOKIE,
+        value=session,
+        path=INGRESS_COOKIE_PATH,
+        secure=is_secure_request(request),
+        samesite=samesite,
+    )
+    return True
+
+
+def is_secure_request(request: Request) -> bool:
+    return request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
 
 
 def _normalize_base_path(base_path: str) -> str:

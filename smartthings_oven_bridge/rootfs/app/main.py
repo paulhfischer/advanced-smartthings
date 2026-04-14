@@ -20,6 +20,8 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 
 from .errors import BridgeError
+from .ingress import relax_ingress_session_cookie
+from .ingress import restore_ingress_session_cookie
 from .ingress import ui_url
 from .models import RawCommandRequest
 from .models import StartWarmingRequest
@@ -131,7 +133,9 @@ def create_ui_app(service: BridgeService) -> FastAPI:
         except BridgeError as err:
             await service.record_exception(err)
             return _redirect_with_flash(request, "/", err.message, "error")
-        return RedirectResponse(authorization_url, status_code=302)
+        response = RedirectResponse(authorization_url, status_code=302)
+        relax_ingress_session_cookie(response, request)
+        return response
 
     @app.get("/oauth/callback")
     async def oauth_callback(
@@ -268,7 +272,7 @@ def _redirect_with_flash(
     message: str,
     level: str,
 ) -> RedirectResponse:
-    return RedirectResponse(
+    response = RedirectResponse(
         ui_url(
             request,
             path,
@@ -276,6 +280,8 @@ def _redirect_with_flash(
         ),
         status_code=302,
     )
+    restore_ingress_session_cookie(response, request)
+    return response
 
 
 async def _build_ui_context(request: Request, service: BridgeService) -> dict[str, object]:

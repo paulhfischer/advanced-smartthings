@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3
+
+- reissued the Home Assistant ingress session cookie with `SameSite=Lax` for the SmartThings OAuth launch so the callback is still authorized after the external redirect
+- restored the stricter ingress cookie policy on normal UI redirects after the callback returns
+- documented that the SmartThings OAuth flow must complete in the same browser session that launched it
+
 ## 1.1.2
 
 - changed the SmartThings OAuth start action to escape the Home Assistant ingress iframe so the external SmartThings login flow is not blocked by iframe sandboxing
