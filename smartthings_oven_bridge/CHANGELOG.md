@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+- fixed ingress-aware UI navigation so OAuth start, action links, and flash redirects stay under the Home Assistant ingress path
+- added focused ingress regression tests for rendered UI links and redirect targets
+
 ## 1.1.0
 
 - fixed the add-on startup path so `python -m app.main` runs reliably in the container
