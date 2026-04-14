@@ -1,0 +1,6 @@
+{
+  "name": "Advanced SmartThings",
+  "domains": ["advanced_smartthings"],
+  "homeassistant": "2025.1.0",
+  "render_readme": true
+}

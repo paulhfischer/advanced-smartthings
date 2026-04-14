@@ -1,0 +1,98 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Dieses SmartThings-Konto ist bereits eingerichtet.",
+      "api_error": "SmartThings hat geantwortet, aber die Geräteerkennung ist fehlgeschlagen.",
+      "cannot_connect": "SmartThings konnte nicht erreicht werden.",
+      "missing_oauth_state": "Dem OAuth-Ablauf fehlt ein temporärer Status.",
+      "missing_scopes": "Die erteilten SmartThings-Berechtigungen enthalten nicht alle erforderlichen Rechte.",
+      "no_locations_found": "Für dieses SmartThings-Konto wurden keine Standorte gefunden.",
+      "no_supported_devices": "Es wurden keine unterstützten Backöfen, Kühlschränke oder Kochfelder gefunden.",
+      "reauth_account_mismatch": "Die erneute Authentifizierung wurde für ein anderes SmartThings-Konto abgeschlossen.",
+      "single_instance_allowed": "Es wird nur ein Advanced-SmartThings-Konfigurationseintrag unterstützt."
+    },
+    "error": {
+      "no_devices_selected": "Wähle mindestens ein unterstütztes SmartThings-Gerät aus."
+    },
+    "step": {
+      "user": {
+        "title": "SmartThings verbinden",
+        "description": "Gib die Client-ID und das Client-Geheimnis deiner SmartThings-OAuth-In-App ein und autorisiere anschließend Home Assistant bei SmartThings.",
+        "data": {
+          "client_id": "Client-ID",
+          "client_secret": "Client-Geheimnis"
+        }
+      },
+      "reauth_confirm": {
+        "title": "SmartThings erneut verbinden",
+        "description": "Authentifiziere dieses SmartThings-Konto erneut."
+      },
+      "select_devices": {
+        "title": "Geräte auswählen",
+        "description": "Wähle die unterstützten Backöfen, Kühlschränke und Kochfelder aus, die Advanced SmartThings als native Home-Assistant-Entitäten bereitstellen soll.",
+        "data": {
+          "selected_device_ids": "Unterstützte Geräte"
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "no_devices_selected": "Wähle mindestens ein unterstütztes SmartThings-Gerät aus."
+    },
+    "step": {
+      "init": {
+        "title": "Geräte auswählen",
+        "description": "Wähle aus, welche unterstützten SmartThings-Geräte dieser Konfigurationseintrag enthalten soll.",
+        "data": {
+          "selected_device_ids": "Enthaltene Geräte"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "cooktop_active": {
+        "name": "Kochfeld aktiv"
+      },
+      "freezer_door": {
+        "name": "Gefrierschranktür"
+      },
+      "refrigerator_door": {
+        "name": "Kühlschranktür"
+      }
+    },
+    "number": {
+      "freezer_temperature": {
+        "name": "Gefrierschranktemperatur"
+      },
+      "oven_temperature": {
+        "name": "Temperatur"
+      },
+      "oven_timer": {
+        "name": "Timer"
+      },
+      "refrigerator_temperature": {
+        "name": "Kühlschranktemperatur"
+      }
+    },
+    "select": {
+      "oven_mode": {
+        "name": "Backmodus"
+      }
+    },
+    "sensor": {
+      "current_power_consumption": {
+        "name": "Leistungsaufnahme"
+      },
+      "water_filter_usage": {
+        "name": "Wasserfilterverbrauch"
+      }
+    },
+    "switch": {
+      "oven_lamp": {
+        "name": "Beleuchtung"
+      }
+    }
+  }
+}

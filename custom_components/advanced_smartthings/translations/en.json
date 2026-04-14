@@ -1,0 +1,98 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "This SmartThings account is already configured.",
+      "api_error": "SmartThings responded, but device discovery failed.",
+      "cannot_connect": "Unable to reach SmartThings.",
+      "missing_oauth_state": "The OAuth flow is missing temporary state.",
+      "missing_scopes": "The granted SmartThings scopes are missing required permissions.",
+      "no_locations_found": "The SmartThings account does not expose any locations.",
+      "no_supported_devices": "No supported ovens, refrigerators, or cooktops were found.",
+      "reauth_account_mismatch": "The reauthentication flow was completed for a different SmartThings account.",
+      "single_instance_allowed": "Only one Advanced SmartThings config entry is supported."
+    },
+    "error": {
+      "no_devices_selected": "Select at least one supported SmartThings device."
+    },
+    "step": {
+      "user": {
+        "title": "Connect SmartThings",
+        "description": "Enter the client ID and client secret for your SmartThings OAuth-In app, then continue to SmartThings to authorize Home Assistant.",
+        "data": {
+          "client_id": "Client ID",
+          "client_secret": "Client secret"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reconnect SmartThings",
+        "description": "Reauthenticate this SmartThings account."
+      },
+      "select_devices": {
+        "title": "Select devices",
+        "description": "Choose the supported ovens, refrigerators, and cooktops that Advanced SmartThings should expose as native Home Assistant entities.",
+        "data": {
+          "selected_device_ids": "Supported devices"
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "no_devices_selected": "Select at least one supported SmartThings device."
+    },
+    "step": {
+      "init": {
+        "title": "Select devices",
+        "description": "Choose which supported SmartThings devices this config entry should include.",
+        "data": {
+          "selected_device_ids": "Included devices"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "cooktop_active": {
+        "name": "Cooktop active"
+      },
+      "freezer_door": {
+        "name": "Freezer door"
+      },
+      "refrigerator_door": {
+        "name": "Refrigerator door"
+      }
+    },
+    "number": {
+      "freezer_temperature": {
+        "name": "Freezer temperature"
+      },
+      "oven_temperature": {
+        "name": "Temperature"
+      },
+      "oven_timer": {
+        "name": "Timer"
+      },
+      "refrigerator_temperature": {
+        "name": "Refrigerator temperature"
+      }
+    },
+    "select": {
+      "oven_mode": {
+        "name": "Oven mode"
+      }
+    },
+    "sensor": {
+      "current_power_consumption": {
+        "name": "Power consumption"
+      },
+      "water_filter_usage": {
+        "name": "Water filter usage"
+      }
+    },
+    "switch": {
+      "oven_lamp": {
+        "name": "Lamp"
+      }
+    }
+  }
+}

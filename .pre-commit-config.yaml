@@ -22,7 +22,7 @@ repos:
           - id: mixed-line-ending
             args: [--fix=lf]
           - id: name-tests-test
-            args: [--pytest]
+            args: [--pytest-test-first]
           - id: requirements-txt-fixer
             files: (^|/)requirements(?:-dev)?\.txt$
 
@@ -50,32 +50,17 @@ repos:
           - id: ruff-format
             types_or: [python, pyi]
 
-    - repo: https://github.com/pypa/pip-audit
-      rev: v2.9.0
-      hooks:
-          - id: pip-audit
-            args:
-                [
-                    --requirement,
-                    smartthings_oven_bridge/requirements.txt,
-                    --requirement,
-                    requirements-dev.txt,
-                ]
-
     - repo: local
       hooks:
           - id: pytest
             name: pytest
-            entry: python -m pytest -q
+            entry: python -m pytest -q tests
             language: python
             additional_dependencies:
                 [
-                    fastapi==0.135.3,
-                    httpx==0.28.1,
-                    jinja2==3.1.6,
-                    pydantic==2.13.0,
-                    pytest==9.0.3,
-                    uvicorn==0.44.0,
+                    homeassistant==2025.1.4,
+                    pytest==8.3.4,
+                    pytest-homeassistant-custom-component==0.13.205,
                 ]
             pass_filenames: false
             require_serial: true

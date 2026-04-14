@@ -1,21 +1,121 @@
-# SmartThings Oven Bridge
+# Advanced SmartThings
 
-Custom Home Assistant add-on repository for `smartthings_oven_bridge`.
+English | [Deutsch](README.de.md)
 
-The add-on provides:
+`Advanced SmartThings` is a Home Assistant custom integration for a narrow, explicit subset of Samsung/SmartThings appliance features.
 
-- an ingress UI for SmartThings OAuth, device discovery, and basic smoke tests
-- an internal HTTP API for Home Assistant `rest_command`, scripts, and automations
-- persistent token and cache storage under the add-on `/data` directory
+This repository no longer ships a Home Assistant add-on. It now provides a native custom integration under `custom_components/advanced_smartthings/`.
 
-Use [smartthings_oven_bridge/DOCS.md](/Users/fischerp/Workspace/smartthings-oven-bridge/smartthings_oven_bridge/DOCS.md) for the full operator guide.
+## What v1 supports
 
-Local quality checks:
+Only the following device classes and features are intentionally supported:
+
+- Oven
+  - mode/program as a writable `select`
+  - timer duration as a writable `number`
+  - temperature setpoint as a writable `number`
+  - lamp as a writable `switch`
+- Refrigerator
+  - refrigerator door open as a read-only `binary_sensor`
+  - freezer door open as a read-only `binary_sensor`
+  - refrigerator temperature setpoint as a writable `number`
+  - freezer temperature setpoint as a writable `number`
+  - current power consumption as a read-only `sensor`
+  - water filter usage as a read-only `sensor`
+- Cooktop / hob
+  - cooktop active state as a read-only `binary_sensor`
+
+Everything else is intentionally ignored for now.
+
+## What is explicitly unsupported
+
+- Generic SmartThings capability passthrough
+- Raw command execution from Home Assistant
+- Hood features, per-burner cooktop control, and cooktop write control
+- Fridge camera, icemaker, vacation mode, power cool/freeze, and other advanced Samsung-only features
+- Appliance classes outside the supported oven / refrigerator / cooktop scope
+
+## Language support
+
+Home Assistant user-facing strings are prepared for:
+
+- English
+- German
+
+This includes config-flow labels, abort/error text, options-flow labels, and entity names.
+
+Dynamic SmartThings values such as oven mode names are passed through from SmartThings and may not be localized by this integration.
+
+## Installation
+
+### HACS custom repository
+
+1. Open HACS.
+2. Add this repository as a custom repository of type `Integration`.
+3. Search for `Advanced SmartThings`.
+4. Install it.
+5. Restart Home Assistant.
+
+### Manual installation
+
+1. Copy `custom_components/advanced_smartthings` into your Home Assistant configuration directory:
+
+   `config/custom_components/advanced_smartthings`
+
+2. Restart Home Assistant.
+
+## SmartThings OAuth setup
+
+Create a SmartThings OAuth-In app and use your Home Assistant external URL as the redirect URI.
+
+Required SmartThings settings:
+
+- Redirect URI:
+  - `https://YOUR_HOME_ASSISTANT_EXTERNAL_URL/auth/external/callback`
+- Scopes:
+  - `r:devices:*`
+  - `x:devices:*`
+  - `r:locations:*`
+
+Notes:
+
+- The Home Assistant external URL must be reachable by the browser you use for setup.
+- The redirect URI must exactly match the URL registered in SmartThings.
+- Client ID and client secret are entered during the Home Assistant config flow.
+
+## Home Assistant setup
+
+1. In Home Assistant, go to `Settings > Devices & services > Add integration`.
+2. Add `Advanced SmartThings`.
+3. Enter the SmartThings client ID and client secret.
+4. Complete the SmartThings authorization step in the browser.
+5. Select the supported devices you want Home Assistant to include.
+6. Finish the flow.
+
+## Mapping notes
+
+- Oven mode uses `samsungce.ovenMode`.
+- Oven timer uses `samsungce.ovenOperatingState.setOperationTime`, exposed as a duration `number` in minutes.
+- Oven temperature uses `ovenSetpoint`.
+- Oven lamp uses `samsungce.lamp`, mapped to a switch using supported brightness levels.
+- Refrigerator temperature numbers use `thermostatCoolingSetpoint` on the `cooler` and `freezer` components.
+- Refrigerator doors use `contactSensor` on the `cooler` and `freezer` components.
+- Refrigerator power consumption uses `powerConsumptionReport.powerConsumption.value.power`.
+- Refrigerator water filter usage uses `custom.waterFilter.waterFilterUsage`.
+- Cooktop state uses the read-only `switch` state and is exposed as a binary sensor, not a writable switch.
+
+## Development
+
+Recommended local setup:
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 . .venv/bin/activate
-pip install -r smartthings_oven_bridge/requirements.txt -r requirements-dev.txt
-pytest -q
+pip install -r requirements-dev.txt
+pytest -q tests
 pre-commit run --all-files
 ```
+
+## Logo / branding note
+
+This repository does not ship a SmartThings logo asset. The legal/policy status for bundling SmartThings branding in this project is not assumed.
