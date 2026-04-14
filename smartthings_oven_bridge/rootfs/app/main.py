@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import signal
 from typing import Annotated
+from typing import Literal
 
 from fastapi import FastAPI
 from fastapi import Query
@@ -36,6 +37,7 @@ BoolQuery = Annotated[bool | None, Query()]
 SetpointQuery = Annotated[int, Query(ge=1, le=300)]
 DurationQuery = Annotated[int, Query(ge=1, le=86_400)]
 CallNext = Callable[[Request], Awaitable[Response]]
+IngressCookiePolicy = Literal["strict", "lax", "none"]
 
 
 def create_api_app(service: BridgeService) -> FastAPI:
@@ -154,16 +156,40 @@ def create_ui_app(service: BridgeService) -> FastAPI:
                     details={"description": error_description},
                 )
             )
-            return _redirect_with_flash(request, "/", "SmartThings OAuth returned an error.", "error")
+            return _redirect_with_flash(
+                request,
+                "/",
+                "SmartThings OAuth returned an error.",
+                "error",
+                ingress_cookie_policy="lax",
+            )
         if code is None or state is None:
-            return _redirect_with_flash(request, "/", "Missing code or state in OAuth callback.", "error")
+            return _redirect_with_flash(
+                request,
+                "/",
+                "Missing code or state in OAuth callback.",
+                "error",
+                ingress_cookie_policy="lax",
+            )
 
         try:
             await service.complete_oauth_flow(code, state)
         except BridgeError as err:
             await service.record_exception(err)
-            return _redirect_with_flash(request, "/", err.message, "error")
-        return _redirect_with_flash(request, "/", "SmartThings authorization completed.", "success")
+            return _redirect_with_flash(
+                request,
+                "/",
+                err.message,
+                "error",
+                ingress_cookie_policy="lax",
+            )
+        return _redirect_with_flash(
+            request,
+            "/",
+            "SmartThings authorization completed.",
+            "success",
+            ingress_cookie_policy="lax",
+        )
 
     @app.get("/ui/actions/discover_devices")
     async def ui_discover_devices(request: Request) -> RedirectResponse:
@@ -271,6 +297,8 @@ def _redirect_with_flash(
     path: str,
     message: str,
     level: str,
+    *,
+    ingress_cookie_policy: IngressCookiePolicy = "strict",
 ) -> RedirectResponse:
     response = RedirectResponse(
         ui_url(
@@ -280,7 +308,10 @@ def _redirect_with_flash(
         ),
         status_code=302,
     )
-    restore_ingress_session_cookie(response, request)
+    if ingress_cookie_policy == "strict":
+        restore_ingress_session_cookie(response, request)
+    elif ingress_cookie_policy == "lax":
+        relax_ingress_session_cookie(response, request)
     return response
 
 

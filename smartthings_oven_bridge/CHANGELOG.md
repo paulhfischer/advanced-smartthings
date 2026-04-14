@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.4
+
+- kept the Home Assistant ingress session cookie relaxed through the OAuth callback redirect so the final return to the add-on UI is not rejected with `401 Unauthorized`
+- added a callback regression test that covers the final ingress redirect after SmartThings authorization
+
 ## 1.1.3
 
 - reissued the Home Assistant ingress session cookie with `SameSite=Lax` for the SmartThings OAuth launch so the callback is still authorized after the external redirect

@@ -42,6 +42,10 @@ class FakeUiService:
         del request
         return "https://api.smartthings.com/oauth/authorize?state=test-state"
 
+    async def complete_oauth_flow(self, code: str, state: str) -> None:
+        assert code == "auth-code"
+        assert state == "oauth-state"
+
     async def refresh_discovered_devices(self) -> list[dict[str, object]]:
         return [{"device_id": "oven-1"}]
 
@@ -97,6 +101,30 @@ def test_oauth_start_relaxes_ingress_session_cookie_for_callback_round_trip() ->
 
     assert response.status_code == 302
     assert response.headers["location"] == "https://api.smartthings.com/oauth/authorize?state=test-state"
+    set_cookie = response.headers["set-cookie"]
+    assert "ingress_session=session-123" in set_cookie
+    assert "Path=/api/hassio_ingress/" in set_cookie
+    assert "SameSite=lax" in set_cookie
+    assert "Secure" in set_cookie
+
+
+def test_oauth_callback_keeps_relaxed_ingress_session_cookie_for_final_ui_redirect() -> None:
+    client = _ui_client()
+    client.cookies.set("ingress_session", "session-123")
+
+    response = client.get(
+        "/oauth/callback",
+        headers=_ingress_headers(),
+        params={"code": "auth-code", "state": "oauth-state"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    redirect_url = urlparse(response.headers["location"])
+    assert redirect_url.path == "/api/hassio_ingress/bridge/"
+    query = parse_qs(redirect_url.query)
+    assert query["flash"] == ["SmartThings authorization completed."]
+    assert query["flash_level"] == ["success"]
     set_cookie = response.headers["set-cookie"]
     assert "ingress_session=session-123" in set_cookie
     assert "Path=/api/hassio_ingress/" in set_cookie
