@@ -224,6 +224,7 @@
             <a
               class="button{% if not status.oauth_callback.ready or not status.oauth_configured %} disabled{% endif %}"
               href="{{ ui_urls.oauth_start }}"
+              target="_top"
               >Start OAuth login</a
             >
             <a
@@ -239,7 +240,9 @@
           </div>
           <p class="hint">
             Start the add-on, copy the callback URL into SmartThings, authorize,
-            use “Discover devices” to locate the oven device ID, then save that
+            use “Start OAuth login” to leave the Home Assistant ingress iframe
+            for the SmartThings sign-in flow, then use “Discover devices” to
+            locate the oven device ID, and save that
             ID in the add-on config and restart.
           </p>
         </article>

@@ -1,5 +1,5 @@
 name: "SmartThings Oven Bridge"
-version: "1.1.1"
+version: "1.1.2"
 slug: "smartthings_oven_bridge"
 description: >-
   Bridge between Home Assistant and the SmartThings API for Samsung oven control.

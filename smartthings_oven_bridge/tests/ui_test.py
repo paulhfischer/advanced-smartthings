@@ -52,6 +52,7 @@ def test_index_renders_ingress_prefixed_ui_links() -> None:
 
     assert response.status_code == 200
     assert 'href="/api/hassio_ingress/bridge/oauth/start"' in response.text
+    assert 'target="_top"' in response.text
     assert 'href="/api/hassio_ingress/bridge/ui/actions/discover_devices"' in response.text
     assert 'href="/api/hassio_ingress/bridge/ui/actions/refresh"' in response.text
     assert 'href="/api/hassio_ingress/bridge/ui/actions/start_warming?setpoint=55&amp;duration_seconds=1800"' in response.text
@@ -81,6 +82,7 @@ def test_index_renders_local_links_without_ingress_prefix() -> None:
 
     assert response.status_code == 200
     assert 'href="/oauth/start"' in response.text
+    assert 'target="_top"' in response.text
     assert 'href="/ui/actions/discover_devices"' in response.text
 
 

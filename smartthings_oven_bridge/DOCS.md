@@ -115,6 +115,7 @@ If the callback is not ready:
 ## Complete First Authorization
 
 1. In the add-on UI, click **Start OAuth login**.
+   This intentionally escapes the Home Assistant ingress iframe because the SmartThings login flow cannot complete inside the sandboxed ingress frame.
 2. Sign in to SmartThings and approve access.
 3. Let SmartThings redirect back into Home Assistant.
 4. Return to the add-on UI.

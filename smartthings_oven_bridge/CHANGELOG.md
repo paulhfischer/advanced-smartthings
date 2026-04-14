@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+- changed the SmartThings OAuth start action to escape the Home Assistant ingress iframe so the external SmartThings login flow is not blocked by iframe sandboxing
+- documented that the OAuth flow intentionally leaves the ingress iframe and must use the callback URL shown in the add-on UI
+
 ## 1.1.1
 
 - fixed ingress-aware UI navigation so OAuth start, action links, and flash redirects stay under the Home Assistant ingress path
