@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv sh
+set -eu
+
+cd /
+exec python3 -m app.main

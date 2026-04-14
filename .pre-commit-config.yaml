@@ -1,0 +1,81 @@
+default_language_version:
+    python: python3.12
+
+repos:
+    - repo: https://github.com/pre-commit/pre-commit-hooks
+      rev: v6.0.0
+      hooks:
+          - id: check-ast
+          - id: check-case-conflict
+          - id: check-docstring-first
+          - id: check-executables-have-shebangs
+          - id: check-illegal-windows-names
+          - id: check-json
+          - id: check-merge-conflict
+          - id: check-symlinks
+          - id: check-toml
+          - id: check-xml
+          - id: check-yaml
+          - id: debug-statements
+          - id: detect-private-key
+          - id: end-of-file-fixer
+          - id: mixed-line-ending
+            args: [--fix=lf]
+          - id: name-tests-test
+            args: [--pytest]
+          - id: requirements-txt-fixer
+            files: (^|/)requirements(?:-dev)?\.txt$
+
+    - repo: https://github.com/abravalheri/validate-pyproject
+      rev: v0.25
+      hooks:
+          - id: validate-pyproject
+            files: (^|/)pyproject\.toml$
+
+    - repo: https://github.com/pre-commit/pygrep-hooks
+      rev: v1.10.0
+      hooks:
+          - id: python-check-blanket-noqa
+          - id: python-check-mock-methods
+          - id: python-no-eval
+          - id: python-no-log-warn
+          - id: python-use-type-annotations
+
+    - repo: https://github.com/astral-sh/ruff-pre-commit
+      rev: v0.15.7
+      hooks:
+          - id: ruff-check
+            types_or: [python, pyi]
+            args: [--fix, --exit-non-zero-on-fix]
+          - id: ruff-format
+            types_or: [python, pyi]
+
+    - repo: https://github.com/pypa/pip-audit
+      rev: v2.9.0
+      hooks:
+          - id: pip-audit
+            args:
+                [
+                    --requirement,
+                    smartthings_oven_bridge/requirements.txt,
+                    --requirement,
+                    requirements-dev.txt,
+                ]
+
+    - repo: local
+      hooks:
+          - id: pytest
+            name: pytest
+            entry: python -m pytest -q
+            language: python
+            additional_dependencies:
+                [
+                    fastapi==0.135.3,
+                    httpx==0.28.1,
+                    jinja2==3.1.6,
+                    pydantic==2.13.0,
+                    pytest==9.0.3,
+                    uvicorn==0.44.0,
+                ]
+            pass_filenames: false
+            require_serial: true

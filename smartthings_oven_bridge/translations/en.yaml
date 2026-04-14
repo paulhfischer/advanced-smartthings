@@ -1,0 +1,15 @@
+configuration:
+  smartthings_client_id:
+    name: SmartThings client ID
+    description: OAuth client ID for your SmartThings OAuth app.
+  smartthings_client_secret:
+    name: SmartThings client secret
+    description: OAuth client secret for your SmartThings OAuth app.
+  smartthings_device_id:
+    name: SmartThings device ID
+    description: >-
+      Optional for the initial OAuth step. Required before the add-on can refresh
+      or control a specific oven.
+  log_level:
+    name: Log level
+    description: Controls how much operational detail is written to the app log.
