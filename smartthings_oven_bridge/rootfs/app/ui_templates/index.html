@@ -223,17 +223,17 @@
           <div class="actions">
             <a
               class="button{% if not status.oauth_callback.ready or not status.oauth_configured %} disabled{% endif %}"
-              href="/oauth/start"
+              href="{{ ui_urls.oauth_start }}"
               >Start OAuth login</a
             >
             <a
               class="button alt{% if status.auth_state != 'authorized' %} disabled{% endif %}"
-              href="/ui/actions/discover_devices"
+              href="{{ ui_urls.discover_devices }}"
               >Discover devices</a
             >
             <a
               class="button ghost{% if not status.device_id_configured %} disabled{% endif %}"
-              href="/ui/actions/refresh"
+              href="{{ ui_urls.refresh_device }}"
               >Refresh configured device</a
             >
           </div>
@@ -250,12 +250,12 @@
           <div class="actions">
             <a
               class="button ghost{% if not status.device_id_configured %} disabled{% endif %}"
-              href="/ui/actions/stop"
+              href="{{ ui_urls.stop }}"
               >Test stop</a
             >
             <a
               class="button alt{% if not status.device_id_configured %} disabled{% endif %}"
-              href="/ui/actions/start_warming?setpoint=55&duration_seconds=1800"
+              href="{{ ui_urls.start_warming }}"
               >Test start warming</a
             >
           </div>

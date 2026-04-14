@@ -67,6 +67,7 @@ This add-on uses the SmartThings OAuth authorization code flow.
 1. Start the add-on before creating the final SmartThings redirect URI.
 2. Open the add-on Web UI in Home Assistant.
 3. Wait until the **OAuth callback URL** field shows a real HTTPS URL.
+   The add-on derives this from the Home Assistant ingress base path exposed in the `X-Ingress-Path` header.
 4. Use that exact URL in SmartThings as the redirect URI.
 
 ### What to create in SmartThings
@@ -93,6 +94,7 @@ Example:
   - target/base URL, if requested: `https://ha.example.com/api/hassio_ingress/abc123`
 
 If Home Assistant later changes the ingress path, you must update the SmartThings redirect URI to match.
+Always copy the callback URL exactly as shown by the add-on UI.
 
 ## Start The Add-on
 

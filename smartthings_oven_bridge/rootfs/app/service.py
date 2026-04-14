@@ -19,6 +19,8 @@ from .errors import BridgeError
 from .errors import ConfigurationError
 from .errors import TokenRefreshError
 from .errors import UpstreamRequestError
+from .ingress import build_callback_url
+from .ingress import get_ingress_base_path
 from .models import CallbackResolution
 from .models import CommandResult
 from .models import DedupeEntry
@@ -425,18 +427,17 @@ class BridgeService:
         await self._state_store.mark_auth_broken(reason)
 
     def _callback_from_request(self, request: Request) -> CallbackResolution | None:
-        ingress_path = request.headers.get("x-ingress-path")
-        if not ingress_path:
+        if get_ingress_base_path(request) is None:
             return None
 
-        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
-        host = request.headers.get("x-forwarded-host") or request.headers.get("host")
-        if not host:
+        callback_url = build_callback_url(request)
+        if callback_url is None:
             return CallbackResolution(
                 ready=False,
                 reason="Unable to determine the Home Assistant host for ingress.",
                 source="request",
             )
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
         if scheme != "https":
             return CallbackResolution(
                 ready=False,
@@ -444,8 +445,6 @@ class BridgeService:
                 source="request",
             )
 
-        ingress_path = ingress_path.rstrip("/")
-        callback_url = f"{scheme}://{host}{ingress_path}/oauth/callback"
         return CallbackResolution(
             ready=True,
             callback_url=callback_url,

@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 import signal
 from typing import Annotated
-from urllib.parse import quote_plus
 
 from fastapi import FastAPI
 from fastapi import Query
@@ -21,6 +20,7 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 
 from .errors import BridgeError
+from .ingress import ui_url
 from .models import RawCommandRequest
 from .models import StartWarmingRequest
 from .service import BridgeService
@@ -130,7 +130,7 @@ def create_ui_app(service: BridgeService) -> FastAPI:
             authorization_url = await service.start_oauth_flow(request)
         except BridgeError as err:
             await service.record_exception(err)
-            return _redirect_with_flash("/", err.message, "error")
+            return _redirect_with_flash(request, "/", err.message, "error")
         return RedirectResponse(authorization_url, status_code=302)
 
     @app.get("/oauth/callback")
@@ -150,50 +150,52 @@ def create_ui_app(service: BridgeService) -> FastAPI:
                     details={"description": error_description},
                 )
             )
-            return _redirect_with_flash("/", "SmartThings OAuth returned an error.", "error")
+            return _redirect_with_flash(request, "/", "SmartThings OAuth returned an error.", "error")
         if code is None or state is None:
-            return _redirect_with_flash("/", "Missing code or state in OAuth callback.", "error")
+            return _redirect_with_flash(request, "/", "Missing code or state in OAuth callback.", "error")
 
         try:
             await service.complete_oauth_flow(code, state)
         except BridgeError as err:
             await service.record_exception(err)
-            return _redirect_with_flash("/", err.message, "error")
-        return _redirect_with_flash("/", "SmartThings authorization completed.", "success")
+            return _redirect_with_flash(request, "/", err.message, "error")
+        return _redirect_with_flash(request, "/", "SmartThings authorization completed.", "success")
 
     @app.get("/ui/actions/discover_devices")
-    async def ui_discover_devices() -> RedirectResponse:
+    async def ui_discover_devices(request: Request) -> RedirectResponse:
         try:
             devices = await service.refresh_discovered_devices()
         except BridgeError as err:
             await service.record_exception(err)
-            return _redirect_with_flash("/", err.message, "error")
+            return _redirect_with_flash(request, "/", err.message, "error")
         return _redirect_with_flash(
+            request,
             "/",
             f"Discovered {len(devices)} SmartThings devices.",
             "success",
         )
 
     @app.get("/ui/actions/refresh")
-    async def ui_refresh() -> RedirectResponse:
+    async def ui_refresh(request: Request) -> RedirectResponse:
         try:
             await service.refresh_device_payload()
         except BridgeError as err:
             await service.record_exception(err)
-            return _redirect_with_flash("/", err.message, "error")
-        return _redirect_with_flash("/", "Device metadata refreshed.", "success")
+            return _redirect_with_flash(request, "/", err.message, "error")
+        return _redirect_with_flash(request, "/", "Device metadata refreshed.", "success")
 
     @app.get("/ui/actions/stop")
-    async def ui_stop() -> RedirectResponse:
+    async def ui_stop(request: Request) -> RedirectResponse:
         try:
             result = await service.stop_oven()
         except BridgeError as err:
             await service.record_exception(err)
-            return _redirect_with_flash("/", err.message, "error")
-        return _redirect_with_flash("/", f"Stop result: {result.result}.", "success")
+            return _redirect_with_flash(request, "/", err.message, "error")
+        return _redirect_with_flash(request, "/", f"Stop result: {result.result}.", "success")
 
     @app.get("/ui/actions/start_warming")
     async def ui_start_warming(
+        request: Request,
         setpoint: SetpointQuery = 55,
         duration_seconds: DurationQuery = 1800,
     ) -> RedirectResponse:
@@ -201,9 +203,10 @@ def create_ui_app(service: BridgeService) -> FastAPI:
             result = await service.start_warming(StartWarmingRequest(setpoint=setpoint, duration_seconds=duration_seconds))
         except BridgeError as err:
             await service.record_exception(err)
-            return _redirect_with_flash("/", err.message, "error")
+            return _redirect_with_flash(request, "/", err.message, "error")
         suffix = " (duration not applied upstream)" if not result.duration_applied else ""
         return _redirect_with_flash(
+            request,
             "/",
             f"Warming result: {result.result}.{suffix}",
             "success",
@@ -259,9 +262,18 @@ async def serve() -> None:
         await service.shutdown()
 
 
-def _redirect_with_flash(path: str, message: str, level: str) -> RedirectResponse:
+def _redirect_with_flash(
+    request: Request,
+    path: str,
+    message: str,
+    level: str,
+) -> RedirectResponse:
     return RedirectResponse(
-        f"{path}?flash={quote_plus(message)}&flash_level={quote_plus(level)}",
+        ui_url(
+            request,
+            path,
+            query={"flash": message, "flash_level": level},
+        ),
         status_code=302,
     )
 
@@ -271,11 +283,27 @@ async def _build_ui_context(request: Request, service: BridgeService) -> dict[st
     return {
         "request": request,
         "status": status,
+        "ui_urls": _build_ui_urls(request),
         "flash": request.query_params.get("flash"),
         "flash_level": request.query_params.get("flash_level", "info"),
         "device_cache_json": _pretty_json(status["device_cache"]),
         "discovered_devices_json": _pretty_json(status["discovered_devices"]),
         "recent_errors_json": _pretty_json(status["recent_errors"]),
+    }
+
+
+def _build_ui_urls(request: Request) -> dict[str, str]:
+    return {
+        "index": ui_url(request, "/"),
+        "oauth_start": ui_url(request, "/oauth/start"),
+        "discover_devices": ui_url(request, "/ui/actions/discover_devices"),
+        "refresh_device": ui_url(request, "/ui/actions/refresh"),
+        "stop": ui_url(request, "/ui/actions/stop"),
+        "start_warming": ui_url(
+            request,
+            "/ui/actions/start_warming",
+            query={"setpoint": 55, "duration_seconds": 1800},
+        ),
     }
 
 
