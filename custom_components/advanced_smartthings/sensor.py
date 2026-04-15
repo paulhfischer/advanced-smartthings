@@ -40,6 +40,11 @@ class AdvancedSmartThingsSensorEntity(AdvancedSmartThingsEntity, SensorEntity):
     @property
     def native_value(self) -> Any:
         raw_value = self._lookup_path(self.entity_description.value_path)
+        if self.entity_description.translation_key == "oven_program":
+            return normalize_oven_mode(
+                self._actual_oven_mode_raw(),
+                oven_mode_display_language(self.hass.config.language),
+            )
         if self.entity_description.state_kind == "duration_minutes":
             return parse_duration_minutes(raw_value)
         if self.entity_description.state_kind == "numeric":
@@ -47,10 +52,6 @@ class AdvancedSmartThingsSensorEntity(AdvancedSmartThingsEntity, SensorEntity):
             if numeric is None:
                 return None
             return int(numeric) if numeric.is_integer() else numeric
-        if self.entity_description.translation_key == "oven_program":
-            return normalize_oven_mode(
-                raw_value, oven_mode_display_language(self.hass.config.language)
-            )
         return raw_value
 
     @property

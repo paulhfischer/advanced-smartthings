@@ -162,6 +162,22 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
         )
         return raw_mode if isinstance(raw_mode, str) and raw_mode else None
 
+    def _actual_oven_mode_raw(self) -> str | None:
+        candidates = self._oven_mode_candidates()
+        if not candidates:
+            return None
+
+        running = self._oven_is_running()
+        if running is True:
+            for candidate in candidates:
+                if candidate not in {"NoOperation", "Others"}:
+                    return candidate
+
+        for candidate in candidates:
+            if candidate != "Others":
+                return candidate
+        return candidates[0]
+
     def _preferred_oven_input_mode_raw(self) -> str | None:
         current_mode = self._current_oven_mode_raw()
         if current_mode not in {None, "NoOperation"}:
@@ -273,6 +289,25 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
             if isinstance(component_id, str) and component_id not in component_ids:
                 component_ids.append(component_id)
         return component_ids
+
+    def _oven_mode_candidates(self) -> list[str]:
+        candidates: list[str] = []
+        seen: set[tuple[str, str, str]] = set()
+        for component_id in self._oven_component_ids():
+            for capability in ("samsungce.ovenMode", "ovenMode"):
+                raw_mode = self._lookup_path(
+                    ("ovenMode", "value"),
+                    component_id=component_id,
+                    capability=capability,
+                )
+                if not isinstance(raw_mode, str) or not raw_mode:
+                    continue
+                key = (component_id, capability, raw_mode)
+                if key in seen:
+                    continue
+                seen.add(key)
+                candidates.append(raw_mode)
+        return candidates
 
     def _oven_control_helper(self):
         from .button import AdvancedSmartThingsButtonEntity

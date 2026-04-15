@@ -174,6 +174,41 @@ async def test_setup_entry_creates_supported_native_entities(
         await hass.async_block_till_done()
 
 
+async def test_running_oven_program_prefers_active_mode_over_no_operation(
+    hass,
+    mock_config_entry,
+) -> None:
+    hass.config.language = "de"
+    mock_config_entry.add_to_hass(hass)
+
+    oven_with_standard_start = _oven_device_with_standard_start()
+    running_status = _oven_status_with_standard_start()
+    running_status["components"]["main"]["ovenMode"]["ovenMode"] = {"value": "ConvectionBake"}
+    running_status["components"]["main"]["ovenOperatingState"]["machineState"] = {
+        "value": "running"
+    }
+    running_status["components"]["main"]["ovenOperatingState"]["ovenJobState"] = {
+        "value": "warming"
+    }
+
+    fake_api = _fake_api(
+        [oven_with_standard_start],
+        {"device-oven-1": running_status},
+    )
+    with patch(
+        "custom_components.advanced_smartthings.async_build_api_client",
+        AsyncMock(return_value=fake_api),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        assert hass.states.get("sensor.backofen_program").state == "Heißluft"
+        assert hass.states.get("select.backofen_program").state == "Heißluft"
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
 async def test_oven_timer_has_safe_bounds_when_mode_spec_lacks_operation_time(
     hass,
     mock_config_entry,

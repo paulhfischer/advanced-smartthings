@@ -40,6 +40,9 @@ class AdvancedSmartThingsSelectEntity(AdvancedSmartThingsEntity, SelectEntity):
     def current_option(self) -> str | None:
         raw_value = self._lookup_path(self.entity_description.value_path)
         if self.entity_description.translation_key == "oven_mode":
+            actual_raw = self._actual_oven_mode_raw()
+            if isinstance(actual_raw, str) and actual_raw not in {"NoOperation", "Others"}:
+                return normalize_oven_mode(actual_raw, self._oven_mode_language())
             if isinstance(raw_value, str) and (
                 not self.entity_description.allowed_raw_options
                 or raw_value in self.entity_description.allowed_raw_options

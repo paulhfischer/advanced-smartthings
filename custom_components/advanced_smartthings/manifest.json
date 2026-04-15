@@ -1,7 +1,7 @@
 {
   "domain": "advanced_smartthings",
   "name": "Advanced SmartThings",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "documentation": "https://github.com/paulhfischer/advanced-smartthings",
   "config_flow": true,
   "integration_type": "hub",
