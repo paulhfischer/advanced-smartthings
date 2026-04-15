@@ -11,11 +11,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import SmartThingsApiClient
-from .const import (
-    DEFAULT_SCAN_INTERVAL,
-    DOOR_SENSOR_SCAN_INTERVAL,
-    POST_COMMAND_REFRESH_DELAYS,
-)
+from .const import DEFAULT_SCAN_INTERVAL, POST_COMMAND_REFRESH_DELAYS
 from .discovery import DiscoveredDevice
 from .exceptions import SmartThingsApiError, SmartThingsConnectionError
 
@@ -42,7 +38,7 @@ class AdvancedSmartThingsCoordinator(DataUpdateCoordinator[dict[str, dict[str, A
             hass,
             logger=logging.getLogger(__name__),
             name="Advanced SmartThings",
-            update_interval=coordinator_scan_interval(devices),
+            update_interval=DEFAULT_SCAN_INTERVAL,
         )
         self.api = api
         self.devices = devices
@@ -97,15 +93,3 @@ class AdvancedSmartThingsCoordinator(DataUpdateCoordinator[dict[str, dict[str, A
             raise
         except Exception:  # pragma: no cover - defensive logging around background tasks
             self.logger.debug("Post-command SmartThings refresh burst failed", exc_info=True)
-
-
-def coordinator_scan_interval(devices: dict[str, DiscoveredDevice]):
-    """Pick a polling interval based on the selected entity mix."""
-    for device in devices.values():
-        for entity in device.supported_entities:
-            if getattr(entity, "translation_key", None) in {
-                "refrigerator_door",
-                "freezer_door",
-            }:
-                return DOOR_SENSOR_SCAN_INTERVAL
-    return DEFAULT_SCAN_INTERVAL
