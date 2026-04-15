@@ -3,9 +3,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .capability_registry import normalize_bool_value
 from .const import DOMAIN
 from .coordinator import AdvancedSmartThingsCoordinator
 from .discovery import DiscoveredDevice
@@ -41,6 +43,15 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
     @property
     def available(self) -> bool:
         return self._device.device_id in self.coordinator.data
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not getattr(self.entity_description, "requires_remote_control", False):
+            return None
+        remote_control_enabled = self._remote_control_enabled()
+        if remote_control_enabled is None:
+            return None
+        return {"remote_control_enabled": remote_control_enabled}
 
     def _capability_payload(
         self,
@@ -86,3 +97,17 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
             arguments,
         )
         await self.coordinator.async_request_refresh()
+
+    def _remote_control_enabled(self) -> bool | None:
+        raw_value = self._lookup_path(
+            ("remoteControlEnabled", "value"),
+            component_id="main",
+            capability="remoteControlStatus",
+        )
+        return normalize_bool_value(raw_value)
+
+    def _require_remote_control_enabled(self) -> None:
+        if not getattr(self.entity_description, "requires_remote_control", False):
+            return
+        if self._remote_control_enabled() is False:
+            raise HomeAssistantError("Remote control is disabled for this oven.")

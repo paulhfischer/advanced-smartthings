@@ -51,6 +51,7 @@ OVEN_DEVICE = {
             "label": "main",
             "categories": [{"name": "Oven"}],
             "capabilities": [
+                {"id": "remoteControlStatus", "version": 1},
                 {"id": "samsungce.lamp", "version": 1},
                 {"id": "samsungce.kitchenModeSpecification", "version": 1},
                 {"id": "samsungce.kitchenDeviceDefaults", "version": 1},
@@ -153,6 +154,9 @@ UNSUPPORTED_DEVICE = {
 OVEN_STATUS = {
     "components": {
         "main": {
+            "remoteControlStatus": {
+                "remoteControlEnabled": {"value": "true"},
+            },
             "samsungce.lamp": {
                 "brightnessLevel": {"value": "off"},
                 "supportedBrightnessLevel": {"value": ["off", "high"]},
@@ -217,6 +221,18 @@ OVEN_STATUS = {
             },
             "ovenSetpoint": {
                 "ovenSetpoint": {"value": 180, "unit": "C"},
+            },
+        },
+    }
+}
+
+OVEN_STATUS_REMOTE_DISABLED = {
+    "components": {
+        **OVEN_STATUS["components"],
+        "main": {
+            **OVEN_STATUS["components"]["main"],
+            "remoteControlStatus": {
+                "remoteControlEnabled": {"value": "false"},
             },
         },
     }

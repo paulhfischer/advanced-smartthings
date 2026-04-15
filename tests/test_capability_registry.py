@@ -45,6 +45,11 @@ def test_build_entity_descriptions_for_supported_v1_appliances() -> None:
         isinstance(description, AdvancedSmartThingsSwitchEntityDescription)
         for description in oven_descriptions
     )
+    assert any(
+        isinstance(description, AdvancedSmartThingsBinarySensorEntityDescription)
+        and description.translation_key == "oven_remote_control"
+        for description in oven_descriptions
+    )
 
     assert (
         sum(

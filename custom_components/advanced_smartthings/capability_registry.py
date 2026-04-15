@@ -33,6 +33,7 @@ class AdvancedSmartThingsEntityMixin:
     component_id: str
     component_label: str | None
     capability: str
+    requires_remote_control: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -227,6 +228,7 @@ def _build_oven_descriptions(
         ("samsungce.ovenMode", "samsungce.ovenOperatingState", "ovenSetpoint"),
     )
     lamp_capability = _find_capability(device, "samsungce.lamp")
+    remote_control_capability = _find_capability(device, "remoteControlStatus")
     specification_capability = _find_component_capability(
         device,
         "main",
@@ -235,6 +237,23 @@ def _build_oven_descriptions(
 
     if control_component is None:
         return descriptions
+
+    if remote_control_capability is not None:
+        descriptions.append(
+            AdvancedSmartThingsBinarySensorEntityDescription(
+                key=_entity_key(remote_control_capability, "remote_control"),
+                name="Remote control",
+                translation_key="oven_remote_control",
+                device_id=device.device_id,
+                device_label=device.label,
+                component_id=remote_control_capability.component_id,
+                component_label=remote_control_capability.component_label,
+                capability=remote_control_capability.capability_id,
+                value_path=("remoteControlEnabled", "value"),
+                on_values=("true",),
+                off_values=("false",),
+            )
+        )
 
     oven_mode_capability = _find_component_capability(
         device, control_component, "samsungce.ovenMode"
@@ -250,6 +269,7 @@ def _build_oven_descriptions(
                 component_id=oven_mode_capability.component_id,
                 component_label=oven_mode_capability.component_label,
                 capability=oven_mode_capability.capability_id,
+                requires_remote_control=True,
                 value_path=("ovenMode", "value"),
                 command="setOvenMode",
                 options_path=("supportedOvenModes", "value"),
@@ -279,6 +299,7 @@ def _build_oven_descriptions(
                 component_id=oven_timer_capability.component_id,
                 component_label=oven_timer_capability.component_label,
                 capability=oven_timer_capability.capability_id,
+                requires_remote_control=True,
                 value_path=("operationTime", "value"),
                 command="setOperationTime",
                 value_kind="duration_minutes",
@@ -304,6 +325,7 @@ def _build_oven_descriptions(
                 component_id=oven_setpoint_capability.component_id,
                 component_label=oven_setpoint_capability.component_label,
                 capability=oven_setpoint_capability.capability_id,
+                requires_remote_control=True,
                 value_path=("ovenSetpoint", "value"),
                 unit_path=("ovenSetpoint", "unit"),
                 command="setOvenSetpoint",

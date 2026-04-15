@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, CONF_TOKEN
+from homeassistant.exceptions import HomeAssistantError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.advanced_smartthings.const import (
@@ -21,6 +23,7 @@ from .conftest import (
     OVEN_DEVICE,
     OVEN_SETPOINT_DEFINITION,
     OVEN_STATUS,
+    OVEN_STATUS_REMOTE_DISABLED,
     SAMSUNG_OVEN_MODE_DEFINITION,
     THERMOSTAT_COOLING_SETPOINT_DEFINITION,
     TOKEN_PAYLOAD,
@@ -65,6 +68,11 @@ async def test_setup_entry_creates_supported_native_entities(
         await hass.async_block_till_done()
 
         assert hass.states.get("select.backofen_oven_mode").state == "Off"
+        assert hass.states.get("binary_sensor.backofen_remote_control").state == "on"
+        assert (
+            hass.states.get("select.backofen_oven_mode").attributes["remote_control_enabled"]
+            is True
+        )
         assert hass.states.get("number.backofen_timer").state == "90.0"
         assert hass.states.get("number.backofen_temperature").state == "180.0"
         assert hass.states.get("switch.backofen_lamp").state == "off"
@@ -77,6 +85,77 @@ async def test_setup_entry_creates_supported_native_entities(
         assert hass.states.get("sensor.kuhlschrank_water_filter_usage").state == "13"
 
         assert hass.states.get("binary_sensor.kochfeld_cooktop_active").state == "off"
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def test_oven_writes_are_blocked_when_remote_control_is_disabled(
+    hass,
+) -> None:
+    mock_config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Advanced SmartThings",
+        data={
+            "auth_implementation": "advanced_smartthings-test",
+            CONF_CLIENT_ID: CLIENT_ID,
+            CONF_CLIENT_SECRET: CLIENT_SECRET,
+            CONF_TOKEN: {
+                **TOKEN_PAYLOAD,
+                "expires_at": 9_999_999_999,
+            },
+            CONF_LOCATION_IDS: ["location-1"],
+        },
+        options={CONF_SELECTED_DEVICE_IDS: ["device-oven-1"]},
+        unique_id="account-1",
+    )
+    mock_config_entry.add_to_hass(hass)
+
+    fake_api = _fake_api(
+        [OVEN_DEVICE],
+        {
+            "device-oven-1": OVEN_STATUS_REMOTE_DISABLED,
+        },
+    )
+    with patch(
+        "custom_components.advanced_smartthings.async_build_api_client",
+        AsyncMock(return_value=fake_api),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        assert hass.states.get("binary_sensor.backofen_remote_control").state == "off"
+        assert (
+            hass.states.get("number.backofen_temperature").attributes["remote_control_enabled"]
+            is False
+        )
+
+        with pytest.raises(HomeAssistantError, match="Remote control is disabled"):
+            await hass.services.async_call(
+                "select",
+                "select_option",
+                {"entity_id": "select.backofen_oven_mode", "option": "Convection"},
+                blocking=True,
+            )
+
+        with pytest.raises(HomeAssistantError, match="Remote control is disabled"):
+            await hass.services.async_call(
+                "number",
+                "set_value",
+                {"entity_id": "number.backofen_temperature", "value": 200},
+                blocking=True,
+            )
+
+        await hass.services.async_call(
+            "switch",
+            "turn_on",
+            {"entity_id": "switch.backofen_lamp"},
+            blocking=True,
+        )
+
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1", "main", "samsungce.lamp", "setBrightnessLevel", ["high"]
+        )
 
         assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
         await hass.async_block_till_done()

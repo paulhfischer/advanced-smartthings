@@ -11,6 +11,7 @@ This repository no longer ships a Home Assistant add-on. It now provides a nativ
 Only the following device classes and features are intentionally supported:
 
 - Oven
+  - remote control enabled as a read-only `binary_sensor`
   - mode/program as a writable `select`
   - timer duration as a writable `number`
   - temperature setpoint as a writable `number`
@@ -98,7 +99,9 @@ Notes:
 - Oven mode uses `samsungce.ovenMode`.
 - Oven timer uses `samsungce.ovenOperatingState.setOperationTime`, exposed as a duration `number` in minutes.
 - Oven temperature uses `ovenSetpoint`.
+- Oven remote-control readiness uses `remoteControlStatus.remoteControlEnabled`.
 - Oven lamp uses `samsungce.lamp`, mapped to a switch using supported brightness levels.
+- Oven mode, timer, and temperature writes are blocked when SmartThings reports remote control as disabled. Lamp control remains available.
 - Refrigerator temperature numbers use `thermostatCoolingSetpoint` on the `cooler` and `freezer` components.
 - Refrigerator doors use `contactSensor` on the `cooler` and `freezer` components.
 - Refrigerator power consumption uses `powerConsumptionReport.powerConsumption.value.power`.

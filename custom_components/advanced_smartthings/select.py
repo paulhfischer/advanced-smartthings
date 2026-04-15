@@ -66,6 +66,7 @@ class AdvancedSmartThingsSelectEntity(AdvancedSmartThingsEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         if option not in self.options:
             raise ValueError(f"Unsupported option {option!r} for {self.entity_id}")
+        self._require_remote_control_enabled()
         if self.entity_description.translation_key == "oven_mode":
             option = denormalize_oven_mode(option)
         await self._async_send_command(self.entity_description.command, [option])

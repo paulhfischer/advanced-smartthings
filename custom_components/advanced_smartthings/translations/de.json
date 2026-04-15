@@ -58,6 +58,9 @@
       "freezer_door": {
         "name": "Gefrierschranktür"
       },
+      "oven_remote_control": {
+        "name": "Fernsteuerung"
+      },
       "refrigerator_door": {
         "name": "Kühlschranktür"
       }

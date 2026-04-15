@@ -58,6 +58,9 @@
       "freezer_door": {
         "name": "Freezer door"
       },
+      "oven_remote_control": {
+        "name": "Remote control"
+      },
       "refrigerator_door": {
         "name": "Refrigerator door"
       }
