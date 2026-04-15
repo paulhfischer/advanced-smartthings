@@ -50,13 +50,9 @@ class AdvancedSmartThingsSwitchEntity(AdvancedSmartThingsEntity, SwitchEntity):
         normalized = normalize_string_value(raw_value)
         if normalized is None:
             return None
-        if normalized == "on":
-            return True
-        if normalized not in {"off", "false"}:
-            return True
-        if normalized == "off":
+        if normalized in {"off", "false"}:
             return False
-        return None
+        return True
 
     async def async_turn_on(self, **kwargs) -> None:
         del kwargs
