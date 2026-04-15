@@ -65,6 +65,14 @@
         "name": "Refrigerator door"
       }
     },
+    "button": {
+      "oven_start_program": {
+        "name": "Start program"
+      },
+      "oven_stop_program": {
+        "name": "Stop program"
+      }
+    },
     "number": {
       "freezer_temperature": {
         "name": "Freezer temperature"

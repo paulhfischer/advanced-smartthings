@@ -113,52 +113,17 @@ class AdvancedSmartThingsNumberEntity(AdvancedSmartThingsEntity, NumberEntity):
             raw_range = self._lookup_path(self.entity_description.range_path)
             return _numeric_range_from_status(raw_range)
         if strategy == "oven_temperature_spec":
-            spec = self._current_oven_mode_spec()
+            spec = super()._current_oven_mode_spec()
             return _numeric_range_from_oven_spec(
                 spec, "temperature", self.native_unit_of_measurement
             )
         if strategy == "oven_timer_spec":
-            spec = self._current_oven_mode_spec()
+            spec = super()._current_oven_mode_spec()
             return _duration_range_from_oven_spec(spec)
         if self.entity_description.fallback_range is not None:
             minimum, maximum, step, _ = self.entity_description.fallback_range
             return minimum, maximum, step
         return None
-
-    def _current_oven_mode_spec(self) -> dict[str, Any] | None:
-        raw_spec = self._lookup_path(
-            ("specification", "value", "single"),
-            component_id="main",
-            capability="samsungce.kitchenModeSpecification",
-        )
-        if not isinstance(raw_spec, list):
-            return None
-
-        by_mode: dict[str, dict[str, Any]] = {}
-        for entry in raw_spec:
-            if not isinstance(entry, dict):
-                continue
-            mode = entry.get("mode")
-            if isinstance(mode, str) and mode:
-                by_mode[mode] = entry
-
-        current_mode = self._lookup_path(
-            ("ovenMode", "value"),
-            component_id=self.entity_description.component_id,
-            capability="samsungce.ovenMode",
-        )
-        if isinstance(current_mode, str) and current_mode in by_mode:
-            return by_mode[current_mode]
-
-        default_mode = self._lookup_path(
-            ("defaultOvenMode", "value"),
-            component_id="main",
-            capability="samsungce.kitchenDeviceDefaults",
-        )
-        if isinstance(default_mode, str) and default_mode in by_mode:
-            return by_mode[default_mode]
-
-        return next(iter(by_mode.values()), None)
 
 
 def _numeric_range_from_status(raw_range: Any) -> tuple[float, float, float] | None:

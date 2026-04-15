@@ -73,6 +73,8 @@ async def test_setup_entry_creates_supported_native_entities(
             hass.states.get("select.backofen_oven_mode").attributes["remote_control_enabled"]
             is True
         )
+        assert hass.states.get("button.backofen_start_program") is not None
+        assert hass.states.get("button.backofen_stop_program") is not None
         assert hass.states.get("number.backofen_timer").state == "90.0"
         assert hass.states.get("number.backofen_temperature").state == "180.0"
         assert hass.states.get("switch.backofen_lamp").state == "off"
@@ -190,6 +192,14 @@ async def test_oven_writes_are_blocked_when_remote_control_is_disabled(
                 blocking=True,
             )
 
+        with pytest.raises(HomeAssistantError, match="Remote control is disabled"):
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.backofen_start_program"},
+                blocking=True,
+            )
+
         await hass.services.async_call(
             "switch",
             "turn_on",
@@ -200,6 +210,37 @@ async def test_oven_writes_are_blocked_when_remote_control_is_disabled(
         fake_api.async_send_command.assert_any_await(
             "device-oven-1", "main", "samsungce.lamp", "setBrightnessLevel", ["high"]
         )
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def test_oven_start_button_requires_selected_mode(
+    hass,
+    mock_config_entry,
+) -> None:
+    mock_config_entry.add_to_hass(hass)
+
+    fake_api = _fake_api(
+        [OVEN_DEVICE],
+        {
+            "device-oven-1": OVEN_STATUS,
+        },
+    )
+    with patch(
+        "custom_components.advanced_smartthings.async_build_api_client",
+        AsyncMock(return_value=fake_api),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        with pytest.raises(HomeAssistantError, match="Select an oven mode"):
+            await hass.services.async_call(
+                "button",
+                "press",
+                {"entity_id": "button.backofen_start_program"},
+                blocking=True,
+            )
 
         assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -265,6 +306,18 @@ async def test_writable_entities_send_explicit_commands(
             blocking=True,
         )
         await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.backofen_start_program"},
+            blocking=True,
+        )
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.backofen_stop_program"},
+            blocking=True,
+        )
+        await hass.services.async_call(
             "number",
             "set_value",
             {"entity_id": "number.kuhlschrank_refrigerator_temperature", "value": 4},
@@ -297,12 +350,121 @@ async def test_writable_entities_send_explicit_commands(
         fake_api.async_send_command.assert_any_await(
             "device-oven-1", "main", "samsungce.lamp", "setBrightnessLevel", ["high"]
         )
+        fake_api.async_send_commands.assert_any_await(
+            "device-oven-1",
+            [
+                {
+                    "component": "cavity-01",
+                    "capability": "samsungce.ovenMode",
+                    "command": "setOvenMode",
+                    "arguments": ["Convection"],
+                },
+                {
+                    "component": "cavity-01",
+                    "capability": "ovenSetpoint",
+                    "command": "setOvenSetpoint",
+                    "arguments": [200],
+                },
+                {
+                    "component": "cavity-01",
+                    "capability": "samsungce.ovenOperatingState",
+                    "command": "setOperationTime",
+                    "arguments": ["00:45:00"],
+                },
+                {
+                    "component": "cavity-01",
+                    "capability": "samsungce.ovenOperatingState",
+                    "command": "start",
+                    "arguments": [],
+                },
+            ],
+        )
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "cavity-01",
+            "samsungce.ovenOperatingState",
+            "stop",
+            [],
+        )
         fake_api.async_send_command.assert_any_await(
             "device-fridge-1",
             "cooler",
             "thermostatCoolingSetpoint",
             "setCoolingSetpoint",
             [4],
+        )
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def test_oven_start_button_uses_mode_default_temperature_when_missing(
+    hass,
+    mock_config_entry,
+) -> None:
+    mock_config_entry.add_to_hass(hass)
+
+    oven_without_setpoint = {
+        "components": {
+            **OVEN_STATUS["components"],
+            "cavity-01": {
+                **OVEN_STATUS["components"]["cavity-01"],
+                "samsungce.ovenMode": {
+                    "supportedOvenModes": {"value": ["Convection", "Conventional"]},
+                    "ovenMode": {"value": "Convection"},
+                },
+                "samsungce.ovenOperatingState": {
+                    "operationTime": {"value": "00:00:00"},
+                },
+                "ovenSetpoint": {
+                    "ovenSetpoint": {"value": 0, "unit": "C"},
+                },
+            },
+        }
+    }
+
+    fake_api = _fake_api(
+        [OVEN_DEVICE],
+        {
+            "device-oven-1": oven_without_setpoint,
+        },
+    )
+    with patch(
+        "custom_components.advanced_smartthings.async_build_api_client",
+        AsyncMock(return_value=fake_api),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        await hass.services.async_call(
+            "button",
+            "press",
+            {"entity_id": "button.backofen_start_program"},
+            blocking=True,
+        )
+
+        fake_api.async_send_commands.assert_any_await(
+            "device-oven-1",
+            [
+                {
+                    "component": "cavity-01",
+                    "capability": "samsungce.ovenMode",
+                    "command": "setOvenMode",
+                    "arguments": ["Convection"],
+                },
+                {
+                    "component": "cavity-01",
+                    "capability": "ovenSetpoint",
+                    "command": "setOvenSetpoint",
+                    "arguments": [160],
+                },
+                {
+                    "component": "cavity-01",
+                    "capability": "samsungce.ovenOperatingState",
+                    "command": "start",
+                    "arguments": [],
+                },
+            ],
         )
 
         assert await hass.config_entries.async_unload(mock_config_entry.entry_id)

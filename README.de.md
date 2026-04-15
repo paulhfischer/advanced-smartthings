@@ -15,6 +15,7 @@ Bewusst unterstützt werden nur diese Geräteklassen und Funktionen:
   - Modus/Programm als schreibbares `select`
   - Timer-Dauer als schreibbares `number`
   - Temperatur-Sollwert als schreibbares `number`
+  - explizite Buttons `Programm starten` und `Programm stoppen`
   - Beleuchtung als schreibbares `switch`
 - Kühlschrank
   - Kühlschranktür offen als nur lesbares `binary_sensor`
@@ -99,9 +100,12 @@ Hinweise:
 - Backofen-Modi verwenden `samsungce.ovenMode`.
 - Der Backofen-Timer verwendet `samsungce.ovenOperatingState.setOperationTime` und wird als Dauer-`number` in Minuten dargestellt.
 - Die Backofen-Temperatur verwendet `ovenSetpoint`.
+- Starten/Stoppen des Backofens verwendet `samsungce.ovenOperatingState.start` bzw. `stop`.
 - Die Fernsteuerbarkeit des Backofens verwendet `remoteControlStatus.remoteControlEnabled`.
 - Die Backofen-Beleuchtung verwendet `samsungce.lamp` und wird als Schalter über unterstützte Helligkeitsstufen abgebildet.
-- Schreiben auf Backofen-Modus, Timer und Temperatur wird blockiert, wenn SmartThings die Fernsteuerung als deaktiviert meldet. Die Beleuchtung bleibt trotzdem steuerbar.
+- Backofen-Modus, Timer und Temperatur dienen als vorbereitete Programmeinstellungen. Mit `Programm starten` sendet die Integration Modus plus aktuelle Temperatur/Timer als zusammengehörige Start-Sequenz an SmartThings.
+- `Programm starten` verweigert `Aus` / `NoOperation` und verwendet den von SmartThings gelieferten Standard-Temperaturwert des gewählten Modus, falls noch kein Temperaturwert gesetzt ist.
+- Schreiben auf Backofen-Modus, Timer, Temperatur sowie Start-/Stop-Buttons wird blockiert, wenn SmartThings die Fernsteuerung als deaktiviert meldet. Die Beleuchtung bleibt trotzdem steuerbar.
 - Kühlschrank-Temperaturen verwenden `thermostatCoolingSetpoint` auf den Komponenten `cooler` und `freezer`.
 - Kühlschrank-Türen verwenden `contactSensor` auf den Komponenten `cooler` und `freezer`.
 - Die Leistungsaufnahme des Kühlschranks verwendet `powerConsumptionReport.powerConsumption.value.power`.

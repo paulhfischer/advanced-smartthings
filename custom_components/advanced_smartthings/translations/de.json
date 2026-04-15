@@ -65,6 +65,14 @@
         "name": "Kühlschranktür"
       }
     },
+    "button": {
+      "oven_start_program": {
+        "name": "Programm starten"
+      },
+      "oven_stop_program": {
+        "name": "Programm stoppen"
+      }
+    },
     "number": {
       "freezer_temperature": {
         "name": "Gefrierschranktemperatur"

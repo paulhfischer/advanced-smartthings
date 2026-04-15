@@ -81,16 +81,24 @@ class SmartThingsApiClient:
         command: str,
         arguments: list[Any] | None = None,
     ) -> None:
-        payload = {
-            "commands": [
+        await self.async_send_commands(
+            device_id,
+            [
                 {
                     "component": component_id,
                     "capability": capability,
                     "command": command,
                     "arguments": arguments or [],
                 }
-            ]
-        }
+            ],
+        )
+
+    async def async_send_commands(
+        self,
+        device_id: str,
+        commands: list[dict[str, Any]],
+    ) -> None:
+        payload = {"commands": commands}
         await self._request_json(
             "POST", f"/devices/{quote(device_id, safe='')}/commands", json_data=payload
         )

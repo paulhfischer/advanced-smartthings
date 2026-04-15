@@ -15,6 +15,7 @@ Only the following device classes and features are intentionally supported:
   - mode/program as a writable `select`
   - timer duration as a writable `number`
   - temperature setpoint as a writable `number`
+  - explicit `Start program` and `Stop program` buttons
   - lamp as a writable `switch`
 - Refrigerator
   - refrigerator door open as a read-only `binary_sensor`
@@ -99,9 +100,12 @@ Notes:
 - Oven mode uses `samsungce.ovenMode`.
 - Oven timer uses `samsungce.ovenOperatingState.setOperationTime`, exposed as a duration `number` in minutes.
 - Oven temperature uses `ovenSetpoint`.
+- Oven start/stop uses `samsungce.ovenOperatingState.start` / `stop`.
 - Oven remote-control readiness uses `remoteControlStatus.remoteControlEnabled`.
 - Oven lamp uses `samsungce.lamp`, mapped to a switch using supported brightness levels.
-- Oven mode, timer, and temperature writes are blocked when SmartThings reports remote control as disabled. Lamp control remains available.
+- Oven mode, timer, and temperature act as staged program settings. Press `Start program` to send the selected mode plus the current temperature/timer to SmartThings as one program start sequence.
+- `Start program` refuses `Off` / `NoOperation` and uses the SmartThings per-mode default temperature if the oven exposes one and no temperature is currently set.
+- Oven mode, timer, temperature, and start/stop buttons are blocked when SmartThings reports remote control as disabled. Lamp control remains available.
 - Refrigerator temperature numbers use `thermostatCoolingSetpoint` on the `cooler` and `freezer` components.
 - Refrigerator doors use `contactSensor` on the `cooler` and `freezer` components.
 - Refrigerator power consumption uses `powerConsumptionReport.powerConsumption.value.power`.

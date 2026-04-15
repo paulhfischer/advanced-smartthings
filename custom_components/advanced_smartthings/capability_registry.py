@@ -9,6 +9,7 @@ from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntityDescription,
 )
+from homeassistant.components.button import ButtonEntityDescription
 from homeassistant.components.number import NumberDeviceClass, NumberEntityDescription, NumberMode
 from homeassistant.components.select import SelectEntityDescription
 from homeassistant.components.sensor import (
@@ -125,6 +126,16 @@ class AdvancedSmartThingsSelectEntityDescription(
 
 
 @dataclass(frozen=True, kw_only=True)
+class AdvancedSmartThingsButtonEntityDescription(
+    AdvancedSmartThingsEntityMixin,
+    ButtonEntityDescription,
+):
+    command: str
+    arguments: tuple[Any, ...] = field(default_factory=tuple)
+    press_strategy: Literal["command", "oven_start_program"] = "command"
+
+
+@dataclass(frozen=True, kw_only=True)
 class AdvancedSmartThingsNumberEntityDescription(
     AdvancedSmartThingsEntityMixin,
     NumberEntityDescription,
@@ -152,6 +163,7 @@ AdvancedSmartThingsEntityDescription = (
     | AdvancedSmartThingsBinarySensorEntityDescription
     | AdvancedSmartThingsSwitchEntityDescription
     | AdvancedSmartThingsSelectEntityDescription
+    | AdvancedSmartThingsButtonEntityDescription
     | AdvancedSmartThingsNumberEntityDescription
 )
 
@@ -380,6 +392,38 @@ def _build_oven_descriptions(
                 device_class=NumberDeviceClass.DURATION,
                 mode=NumberMode.BOX,
                 cast_to_int=True,
+            )
+        )
+
+        descriptions.append(
+            AdvancedSmartThingsButtonEntityDescription(
+                key=_entity_key(oven_timer_capability, "start_program"),
+                name="Start program",
+                translation_key="oven_start_program",
+                device_id=device.device_id,
+                device_label=device.label,
+                component_id=oven_timer_capability.component_id,
+                component_label=oven_timer_capability.component_label,
+                capability=oven_timer_capability.capability_id,
+                requires_remote_control=True,
+                command="start",
+                press_strategy="oven_start_program",
+                icon="mdi:play",
+            )
+        )
+        descriptions.append(
+            AdvancedSmartThingsButtonEntityDescription(
+                key=_entity_key(oven_timer_capability, "stop_program"),
+                name="Stop program",
+                translation_key="oven_stop_program",
+                device_id=device.device_id,
+                device_label=device.label,
+                component_id=oven_timer_capability.component_id,
+                component_label=oven_timer_capability.component_label,
+                capability=oven_timer_capability.capability_id,
+                requires_remote_control=True,
+                command="stop",
+                icon="mdi:stop",
             )
         )
 

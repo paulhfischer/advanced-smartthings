@@ -107,6 +107,20 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
             self._apply_optimistic_updates(optimistic_updates)
         self.coordinator.async_schedule_post_command_refresh()
 
+    async def _async_send_commands(
+        self,
+        commands: Sequence[dict[str, Any]],
+        *,
+        optimistic_updates: Sequence[tuple[str, str, Sequence[str], Any]] = (),
+    ) -> None:
+        await self.coordinator.api.async_send_commands(
+            self._device.device_id,
+            list(commands),
+        )
+        if optimistic_updates:
+            self._apply_optimistic_updates(optimistic_updates)
+        self.coordinator.async_schedule_post_command_refresh()
+
     def _remote_control_enabled(self) -> bool | None:
         raw_value = self._lookup_path(
             ("remoteControlEnabled", "value"),
@@ -120,6 +134,57 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
             return
         if self._remote_control_enabled() is False:
             raise HomeAssistantError("Remote control is disabled for this oven.")
+
+    def _current_oven_mode_raw(self) -> str | None:
+        raw_mode = self._lookup_path(
+            ("ovenMode", "value"),
+            component_id=self.entity_description.component_id,
+            capability="samsungce.ovenMode",
+        )
+        return raw_mode if isinstance(raw_mode, str) and raw_mode else None
+
+    def _iter_oven_mode_specs(self) -> list[dict[str, Any]]:
+        raw_spec = self._lookup_path(
+            ("specification", "value"),
+            component_id="main",
+            capability="samsungce.kitchenModeSpecification",
+        )
+        if not isinstance(raw_spec, dict):
+            return []
+
+        specs: list[dict[str, Any]] = []
+        for entries in raw_spec.values():
+            if not isinstance(entries, list):
+                continue
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
+                mode = entry.get("mode")
+                if isinstance(mode, str) and mode:
+                    specs.append(entry)
+        return specs
+
+    def _current_oven_mode_spec(self) -> dict[str, Any] | None:
+        specs = self._iter_oven_mode_specs()
+        by_mode = {
+            entry["mode"]: entry
+            for entry in specs
+            if isinstance(entry.get("mode"), str) and entry["mode"]
+        }
+
+        current_mode = self._current_oven_mode_raw()
+        if current_mode is not None and current_mode in by_mode:
+            return by_mode[current_mode]
+
+        default_mode = self._lookup_path(
+            ("defaultOvenMode", "value"),
+            component_id="main",
+            capability="samsungce.kitchenDeviceDefaults",
+        )
+        if isinstance(default_mode, str) and default_mode in by_mode:
+            return by_mode[default_mode]
+
+        return next(iter(by_mode.values()), None)
 
     def _apply_optimistic_updates(
         self,
