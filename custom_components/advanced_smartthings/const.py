@@ -21,6 +21,7 @@ CONF_SELECTED_DEVICE_IDS = "selected_device_ids"
 CONF_UNSUPPORTED_CAPABILITIES = "unsupported_capabilities"
 
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=15)
+DOOR_SENSOR_SCAN_INTERVAL = timedelta(seconds=5)
 POST_COMMAND_REFRESH_DELAYS = (2, 5, 10)
 
 PLATFORMS: tuple[Platform, ...] = (

@@ -57,9 +57,7 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
 
         spec = self._current_oven_mode_spec()
         if not _supports_operation(spec, "start"):
-            raise HomeAssistantError(
-                "The selected oven mode cannot be started from SmartThings."
-            )
+            raise HomeAssistantError("The selected oven mode cannot be started from SmartThings.")
 
         component_id = self.entity_description.component_id
         commands: list[dict[str, Any]] = [
@@ -147,11 +145,7 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
         by_unit = temperature_options.get(preferred_unit)
         if not isinstance(by_unit, dict):
             by_unit = next(
-                (
-                    option
-                    for option in temperature_options.values()
-                    if isinstance(option, dict)
-                ),
+                (option for option in temperature_options.values() if isinstance(option, dict)),
                 None,
             )
         if not isinstance(by_unit, dict):
