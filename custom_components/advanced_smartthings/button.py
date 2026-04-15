@@ -14,6 +14,7 @@ from .capability_registry import (
     coerce_numeric_value,
     format_duration_minutes,
     parse_duration_minutes,
+    resolve_standard_oven_start_mode,
 )
 from .entity import AdvancedSmartThingsEntity
 
@@ -59,62 +60,23 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
         if not _supports_operation(spec, "start"):
             raise HomeAssistantError("The selected oven mode cannot be started from SmartThings.")
 
-        component_id = self.entity_description.component_id
-        commands: list[dict[str, Any]] = [
-            {
-                "component": component_id,
-                "capability": "samsungce.ovenMode",
-                "command": "setOvenMode",
-                "arguments": [mode],
-            }
-        ]
-        optimistic_updates: list[tuple[str, str, Sequence[str], Any]] = [
-            (component_id, "samsungce.ovenMode", ("ovenMode", "value"), mode)
-        ]
-
         temperature = self._start_temperature_value(spec)
-        if temperature is not None:
-            commands.append(
-                {
-                    "component": component_id,
-                    "capability": "ovenSetpoint",
-                    "command": "setOvenSetpoint",
-                    "arguments": [temperature],
-                }
+        standard_start = self._standard_oven_start_target(mode)
+        if standard_start is not None:
+            component_id, start_mode = standard_start
+            await self._async_start_standard_oven_program(
+                component_id=component_id,
+                mode=mode,
+                start_mode=start_mode,
+                temperature=temperature,
             )
-            optimistic_updates.append(
-                (component_id, "ovenSetpoint", ("ovenSetpoint", "value"), temperature)
-            )
+            return
 
-        operation_time = self._start_operation_time_value()
-        if operation_time is not None:
-            commands.append(
-                {
-                    "component": component_id,
-                    "capability": "samsungce.ovenOperatingState",
-                    "command": "setOperationTime",
-                    "arguments": [operation_time],
-                }
-            )
-            optimistic_updates.append(
-                (
-                    component_id,
-                    "samsungce.ovenOperatingState",
-                    ("operationTime", "value"),
-                    operation_time,
-                )
-            )
-
-        commands.append(
-            {
-                "component": component_id,
-                "capability": self.entity_description.capability,
-                "command": self.entity_description.command,
-                "arguments": [],
-            }
+        await self._async_start_samsung_oven_program(
+            component_id=self.entity_description.component_id,
+            mode=mode,
+            temperature=temperature,
         )
-
-        await self._async_send_commands(commands, optimistic_updates=optimistic_updates)
 
     def _start_temperature_value(self, spec: dict[str, Any] | None) -> int | None:
         current_value = coerce_numeric_value(
@@ -164,6 +126,187 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
         if parsed_minutes is None or parsed_minutes <= 0:
             return None
         return format_duration_minutes(parsed_minutes)
+
+    def _start_operation_time_seconds(self) -> int | None:
+        formatted_value = self._start_operation_time_value()
+        if formatted_value is not None:
+            parsed_minutes = parse_duration_minutes(formatted_value)
+            if parsed_minutes is not None:
+                return max(0, int(round(parsed_minutes * 60)))
+
+        raw_value = self._lookup_path(
+            ("operationTime", "value"),
+            component_id=self.entity_description.component_id,
+            capability="ovenOperatingState",
+        )
+        if isinstance(raw_value, int | float):
+            return max(0, int(raw_value))
+        return None
+
+    def _standard_oven_start_target(self, raw_mode: str) -> tuple[str, str] | None:
+        for component_id in self._standard_oven_start_components():
+            raw_supported_modes = self._lookup_path(
+                ("supportedOvenModes", "value"),
+                component_id=component_id,
+                capability="ovenMode",
+            )
+            supported_modes = (
+                [value for value in raw_supported_modes if isinstance(value, str)]
+                if isinstance(raw_supported_modes, list)
+                else []
+            )
+            if not supported_modes:
+                continue
+
+            mapped_mode = resolve_standard_oven_start_mode(raw_mode, supported_modes)
+            if mapped_mode is not None:
+                return component_id, mapped_mode
+        return None
+
+    def _standard_oven_start_components(self) -> list[str]:
+        component_ids: list[str] = []
+        for preferred_component_id in ("main", self.entity_description.component_id):
+            if preferred_component_id in component_ids:
+                continue
+            if self._device_component_has_capability(preferred_component_id, "ovenOperatingState"):
+                component_ids.append(preferred_component_id)
+        return component_ids
+
+    def _device_component_has_capability(self, component_id: str, capability_id: str) -> bool:
+        for raw_component in self._device.raw.get("components", []):
+            if not isinstance(raw_component, dict):
+                continue
+            if raw_component.get("id") != component_id:
+                continue
+            for raw_capability in raw_component.get("capabilities", []):
+                if isinstance(raw_capability, dict) and raw_capability.get("id") == capability_id:
+                    return True
+        return False
+
+    async def _async_start_standard_oven_program(
+        self,
+        *,
+        component_id: str,
+        mode: str,
+        start_mode: str,
+        temperature: int | None,
+    ) -> None:
+        arguments: list[Any] = [start_mode]
+        operation_time_seconds = self._start_operation_time_seconds()
+        if operation_time_seconds is not None or temperature is not None:
+            arguments.append(operation_time_seconds or 0)
+        if temperature is not None:
+            arguments.append(temperature)
+
+        optimistic_updates = self._start_optimistic_updates(mode, temperature)
+        if operation_time_seconds is not None:
+            optimistic_updates.extend(
+                [
+                    (
+                        self.entity_description.component_id,
+                        "samsungce.ovenOperatingState",
+                        ("operationTime", "value"),
+                        format_duration_minutes(operation_time_seconds / 60),
+                    ),
+                    (
+                        component_id,
+                        "ovenOperatingState",
+                        ("operationTime", "value"),
+                        operation_time_seconds,
+                    ),
+                ]
+            )
+
+        await self.coordinator.api.async_send_command(
+            self._device.device_id,
+            component_id,
+            "ovenOperatingState",
+            "start",
+            arguments,
+        )
+        self._apply_optimistic_updates(optimistic_updates)
+        self.coordinator.async_schedule_post_command_refresh()
+
+    async def _async_start_samsung_oven_program(
+        self,
+        *,
+        component_id: str,
+        mode: str,
+        temperature: int | None,
+    ) -> None:
+        commands: list[dict[str, Any]] = [
+            {
+                "component": component_id,
+                "capability": "samsungce.ovenMode",
+                "command": "setOvenMode",
+                "arguments": [mode],
+            }
+        ]
+        optimistic_updates = self._start_optimistic_updates(mode, temperature)
+
+        if temperature is not None:
+            commands.append(
+                {
+                    "component": component_id,
+                    "capability": "ovenSetpoint",
+                    "command": "setOvenSetpoint",
+                    "arguments": [temperature],
+                }
+            )
+
+        operation_time = self._start_operation_time_value()
+        if operation_time is not None:
+            commands.append(
+                {
+                    "component": component_id,
+                    "capability": "samsungce.ovenOperatingState",
+                    "command": "setOperationTime",
+                    "arguments": [operation_time],
+                }
+            )
+            optimistic_updates.append(
+                (
+                    component_id,
+                    "samsungce.ovenOperatingState",
+                    ("operationTime", "value"),
+                    operation_time,
+                )
+            )
+
+        commands.append(
+            {
+                "component": component_id,
+                "capability": self.entity_description.capability,
+                "command": self.entity_description.command,
+                "arguments": [],
+            }
+        )
+
+        await self._async_send_commands(commands, optimistic_updates=optimistic_updates)
+
+    def _start_optimistic_updates(
+        self,
+        mode: str,
+        temperature: int | None,
+    ) -> list[tuple[str, str, Sequence[str], Any]]:
+        updates: list[tuple[str, str, Sequence[str], Any]] = [
+            (
+                self.entity_description.component_id,
+                "samsungce.ovenMode",
+                ("ovenMode", "value"),
+                mode,
+            )
+        ]
+        if temperature is not None:
+            updates.append(
+                (
+                    self.entity_description.component_id,
+                    "ovenSetpoint",
+                    ("ovenSetpoint", "value"),
+                    temperature,
+                )
+            )
+        return updates
 
 
 def _supports_operation(spec: dict[str, Any] | None, operation: str) -> bool:

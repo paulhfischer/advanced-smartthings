@@ -68,6 +68,25 @@ OVEN_MODE_TRANSLATIONS: dict[str, dict[str, str]] = {
     "PowerConvection": {"en": "Power Convection", "de": "Power-Umluft"},
 }
 
+STANDARD_OVEN_START_MODE_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "Convection": ("ConvectionBake", "ConvectionRoast"),
+    "Conventional": ("Conventional",),
+    "Bake": ("Bake",),
+    "BottomHeat": ("BottomHeat",),
+    "Bottom": ("BottomHeat",),
+    "Broil": ("Broil",),
+    "SteamCook": ("SteamCook",),
+    "SteamBake": ("SteamBake",),
+    "SteamRoast": ("SteamRoast",),
+    "Proof": ("Proof",),
+    "BreadProof": ("Proof",),
+    "ProveDough": ("Proof",),
+    "Dehydrate": ("Dehydrate",),
+    "KeepWarm": ("warming",),
+    "WarmHold": ("warming",),
+    "Defrost": ("defrosting",),
+}
+
 
 @dataclass(frozen=True, kw_only=True)
 class AdvancedSmartThingsEntityMixin:
@@ -268,6 +287,20 @@ def normalize_oven_mode(raw_value: Any, language: str = "en") -> str | None:
     return _humanize_oven_mode(raw_value)
 
 
+def resolve_standard_oven_start_mode(
+    raw_mode: str,
+    supported_modes: Sequence[str],
+) -> str | None:
+    """Resolve a Samsung-specific oven mode to a standard SmartThings start argument."""
+    if raw_mode in supported_modes:
+        return raw_mode
+
+    for candidate in STANDARD_OVEN_START_MODE_CANDIDATES.get(raw_mode, ()):
+        if candidate in supported_modes:
+            return candidate
+    return None
+
+
 def denormalize_oven_mode(
     option: str,
     *,
@@ -387,6 +420,7 @@ def _build_oven_descriptions(
                 value_kind="duration_minutes",
                 range_strategy="oven_timer_spec",
                 static_min_value=0,
+                static_max_value=720,
                 static_step=1,
                 native_unit_of_measurement=UnitOfTime.MINUTES,
                 device_class=NumberDeviceClass.DURATION,
