@@ -34,6 +34,8 @@ class AdvancedSmartThingsBinarySensorEntity(AdvancedSmartThingsEntity, BinarySen
 
     @property
     def is_on(self) -> bool | None:
+        if self.entity_description.translation_key == "oven_running":
+            return self._oven_is_running()
         raw_value = self._lookup_path(self.entity_description.value_path)
         bool_value = normalize_bool_value(raw_value)
         if bool_value is not None:

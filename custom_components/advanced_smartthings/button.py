@@ -725,20 +725,10 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
         return None
 
     def _current_timer_minutes(self) -> float | None:
-        raw_timer_value = self._lookup_path(
-            ("operationTime", "value"),
-            component_id=self.entity_description.component_id,
-            capability="samsungce.ovenOperatingState",
-        )
-        return parse_duration_minutes(raw_timer_value)
+        return self._actual_oven_timer_minutes()
 
     def _current_setpoint_value(self) -> float | None:
-        raw_value = self._lookup_path(
-            ("ovenSetpoint", "value"),
-            component_id=self.entity_description.component_id,
-            capability="ovenSetpoint",
-        )
-        return coerce_numeric_value(raw_value)
+        return self._actual_oven_setpoint_value()
 
     def _temperature_bounds(
         self,
@@ -753,7 +743,14 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
                     component_id=self.entity_description.component_id,
                     capability="ovenSetpoint",
                 )
-                preferred_unit = raw_unit if raw_unit in {"C", "F"} else "C"
+                preferred_unit = "C"
+                resolved_unit = self._actual_oven_setpoint_unit()
+                if resolved_unit == "°F":
+                    preferred_unit = "F"
+                elif resolved_unit == "°C":
+                    preferred_unit = "C"
+                elif raw_unit in {"C", "F"}:
+                    preferred_unit = raw_unit
                 by_unit = temperature_options.get(preferred_unit)
                 if not isinstance(by_unit, dict):
                     by_unit = temperature_options.get("C")

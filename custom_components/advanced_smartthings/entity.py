@@ -9,7 +9,13 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import slugify
 
-from .capability_registry import AdvancedSmartThingsButtonEntityDescription, normalize_bool_value
+from .capability_registry import (
+    AdvancedSmartThingsButtonEntityDescription,
+    coerce_numeric_value,
+    normalize_bool_value,
+    normalize_temperature_unit,
+    parse_duration_minutes,
+)
 from .const import DOMAIN
 from .coordinator import AdvancedSmartThingsCoordinator
 from .discovery import DiscoveredDevice
@@ -163,20 +169,10 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
         return raw_mode if isinstance(raw_mode, str) and raw_mode else None
 
     def _actual_oven_mode_raw(self) -> str | None:
-        candidates = self._oven_mode_candidates()
-        if not candidates:
+        mode_source = self._actual_oven_mode_source()
+        if mode_source is None:
             return None
-
-        running = self._oven_is_running()
-        if running is True:
-            for candidate in candidates:
-                if candidate not in {"NoOperation", "Others"}:
-                    return candidate
-
-        for candidate in candidates:
-            if candidate != "Others":
-                return candidate
-        return candidates[0]
+        return mode_source[2]
 
     def _preferred_oven_input_mode_raw(self) -> str | None:
         current_mode = self._current_oven_mode_raw()
@@ -291,7 +287,26 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
         return component_ids
 
     def _oven_mode_candidates(self) -> list[str]:
-        candidates: list[str] = []
+        return [candidate[2] for candidate in self._oven_mode_candidates_with_sources()]
+
+    def _actual_oven_mode_source(self) -> tuple[str, str, str] | None:
+        candidates = self._oven_mode_candidates_with_sources()
+        if not candidates:
+            return None
+
+        running = self._oven_is_running()
+        if running is True:
+            for candidate in candidates:
+                if candidate[2] not in {"NoOperation", "Others"}:
+                    return candidate
+
+        for candidate in candidates:
+            if candidate[2] != "Others":
+                return candidate
+        return candidates[0]
+
+    def _oven_mode_candidates_with_sources(self) -> list[tuple[str, str, str]]:
+        candidates: list[tuple[str, str, str]] = []
         seen: set[tuple[str, str, str]] = set()
         for component_id in self._oven_component_ids():
             for capability in ("samsungce.ovenMode", "ovenMode"):
@@ -306,7 +321,111 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
                 if key in seen:
                     continue
                 seen.add(key)
-                candidates.append(raw_mode)
+                candidates.append(key)
+        return candidates
+
+    def _actual_oven_setpoint_value(self) -> float | None:
+        candidates = self._oven_setpoint_candidates()
+        if not candidates:
+            return None
+
+        running = self._oven_is_running()
+        if running is True:
+            for _, value, _ in candidates:
+                if value is not None and value > 0:
+                    return value
+
+        for _, value, _ in candidates:
+            if value is not None:
+                return value
+        return None
+
+    def _actual_oven_setpoint_unit(self) -> str | None:
+        candidates = self._oven_setpoint_candidates()
+        if not candidates:
+            return None
+
+        running = self._oven_is_running()
+        if running is True:
+            for _, value, unit in candidates:
+                if value is not None and value > 0 and unit is not None:
+                    return unit
+
+        for _, _, unit in candidates:
+            if unit is not None:
+                return unit
+        return None
+
+    def _actual_oven_timer_minutes(self) -> float | None:
+        candidates = self._oven_timer_candidates()
+        if not candidates:
+            return None
+
+        running = self._oven_is_running()
+        if running is True:
+            for _, minutes in candidates:
+                if minutes is not None and minutes > 0:
+                    return minutes
+
+        for _, minutes in candidates:
+            if minutes is not None:
+                return minutes
+        return None
+
+    def _oven_state_component_ids(self) -> list[str]:
+        ordered: list[str] = []
+        active_mode_source = self._actual_oven_mode_source()
+        if active_mode_source is not None:
+            ordered.append(active_mode_source[0])
+        for component_id in self._oven_component_ids():
+            if component_id not in ordered:
+                ordered.append(component_id)
+        return ordered
+
+    def _oven_setpoint_candidates(self) -> list[tuple[str, float | None, str | None]]:
+        candidates: list[tuple[str, float | None, str | None]] = []
+        seen_components: set[str] = set()
+        for component_id in self._oven_state_component_ids():
+            if component_id in seen_components:
+                continue
+            seen_components.add(component_id)
+            value = coerce_numeric_value(
+                self._lookup_path(
+                    ("ovenSetpoint", "value"),
+                    component_id=component_id,
+                    capability="ovenSetpoint",
+                )
+            )
+            raw_unit = self._lookup_path(
+                ("ovenSetpoint", "unit"),
+                component_id=component_id,
+                capability="ovenSetpoint",
+            )
+            unit = normalize_temperature_unit(raw_unit)
+            if value is None and unit is None:
+                continue
+            candidates.append((component_id, value, unit))
+        return candidates
+
+    def _oven_timer_candidates(self) -> list[tuple[str, float | None]]:
+        candidates: list[tuple[str, float | None]] = []
+        seen: set[tuple[str, str]] = set()
+        for component_id in self._oven_state_component_ids():
+            for capability in ("samsungce.ovenOperatingState", "ovenOperatingState"):
+                key = (component_id, capability)
+                if key in seen:
+                    continue
+                seen.add(key)
+                minutes = parse_duration_minutes(
+                    self._lookup_path(
+                        ("operationTime", "value"),
+                        component_id=component_id,
+                        capability=capability,
+                    )
+                )
+                if minutes is None:
+                    continue
+                candidates.append((component_id, minutes))
         return candidates
 
     def _oven_control_helper(self):

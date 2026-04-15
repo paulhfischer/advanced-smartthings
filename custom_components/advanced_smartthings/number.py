@@ -46,6 +46,10 @@ class AdvancedSmartThingsNumberEntity(AdvancedSmartThingsEntity, NumberEntity):
 
     @property
     def native_value(self) -> float | None:
+        if self.entity_description.translation_key == "oven_timer":
+            return self._actual_oven_timer_minutes()
+        if self.entity_description.translation_key == "oven_temperature":
+            return self._actual_oven_setpoint_value()
         raw_value = self._lookup_path(self.entity_description.value_path)
         if self.entity_description.value_kind == "duration_minutes":
             return parse_duration_minutes(raw_value)
@@ -53,6 +57,11 @@ class AdvancedSmartThingsNumberEntity(AdvancedSmartThingsEntity, NumberEntity):
 
     @property
     def native_unit_of_measurement(self) -> str | None:
+        if self.entity_description.translation_key == "oven_temperature":
+            return (
+                self._actual_oven_setpoint_unit()
+                or self.entity_description.native_unit_of_measurement
+            )
         if self.entity_description.unit_path:
             raw_unit = self._lookup_path(self.entity_description.unit_path)
             normalized = normalize_temperature_unit(raw_unit)

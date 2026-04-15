@@ -45,6 +45,13 @@ class AdvancedSmartThingsSensorEntity(AdvancedSmartThingsEntity, SensorEntity):
                 self._actual_oven_mode_raw(),
                 oven_mode_display_language(self.hass.config.language),
             )
+        if self.entity_description.translation_key == "oven_timer_status":
+            return self._actual_oven_timer_minutes()
+        if self.entity_description.translation_key == "oven_target_temperature":
+            numeric = self._actual_oven_setpoint_value()
+            if numeric is None:
+                return None
+            return int(numeric) if numeric.is_integer() else numeric
         if self.entity_description.state_kind == "duration_minutes":
             return parse_duration_minutes(raw_value)
         if self.entity_description.state_kind == "numeric":
@@ -56,6 +63,11 @@ class AdvancedSmartThingsSensorEntity(AdvancedSmartThingsEntity, SensorEntity):
 
     @property
     def native_unit_of_measurement(self) -> str | None:
+        if self.entity_description.translation_key == "oven_target_temperature":
+            return (
+                self._actual_oven_setpoint_unit()
+                or self.entity_description.native_unit_of_measurement
+            )
         if self.entity_description.unit_path:
             raw_unit = self._lookup_path(self.entity_description.unit_path)
             normalized = normalize_temperature_unit(raw_unit)
