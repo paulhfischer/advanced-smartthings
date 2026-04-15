@@ -81,6 +81,7 @@ Notes:
 
 - The Home Assistant external URL must be reachable by the browser you use for setup.
 - The redirect URI must exactly match the URL registered in SmartThings.
+- The integration setup dialog shows the exact callback URL that your Home Assistant instance is using.
 - Client ID and client secret are entered during the Home Assistant config flow.
 
 ## Home Assistant setup

@@ -38,6 +38,9 @@ async def test_full_flow_prompts_for_device_selection(
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
+    assert result["description_placeholders"] == {
+        "redirect_uri": "https://example.com/auth/external/callback"
+    }
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
@@ -126,6 +129,9 @@ async def test_flow_aborts_when_scopes_are_missing(
         DOMAIN,
         context={"source": SOURCE_USER},
     )
+    assert result["description_placeholders"] == {
+        "redirect_uri": "https://example.com/auth/external/callback"
+    }
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         user_input={

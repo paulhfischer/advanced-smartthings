@@ -81,6 +81,7 @@ Hinweise:
 
 - Die externe Home-Assistant-URL muss im Browser erreichbar sein.
 - Die Redirect-URI muss exakt mit dem in SmartThings registrierten Wert übereinstimmen.
+- Der Einrichtungsdialog der Integration zeigt die exakte Callback-URL dieser Home-Assistant-Instanz an.
 - Client-ID und Client-Geheimnis werden im Home-Assistant-Konfigurationsdialog eingegeben.
 
 ## Einrichtung in Home Assistant

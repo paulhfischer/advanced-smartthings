@@ -17,7 +17,7 @@
     "step": {
       "user": {
         "title": "SmartThings verbinden",
-        "description": "Gib die Client-ID und das Client-Geheimnis deiner SmartThings-OAuth-In-App ein und autorisiere anschließend Home Assistant bei SmartThings.",
+        "description": "Gib die Client-ID und das Client-Geheimnis deiner SmartThings-OAuth-In-App ein. Trage vorher genau diese Redirect-URI in SmartThings ein: {redirect_uri}",
         "data": {
           "client_id": "Client-ID",
           "client_secret": "Client-Geheimnis"
@@ -25,7 +25,7 @@
       },
       "reauth_confirm": {
         "title": "SmartThings erneut verbinden",
-        "description": "Authentifiziere dieses SmartThings-Konto erneut."
+        "description": "Authentifiziere dieses SmartThings-Konto erneut. Die Redirect-URI für diese Home-Assistant-Instanz ist: {redirect_uri}"
       },
       "select_devices": {
         "title": "Geräte auswählen",

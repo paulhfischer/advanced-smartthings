@@ -18,7 +18,7 @@
     "step": {
       "user": {
         "title": "Connect SmartThings",
-        "description": "Enter the client ID and client secret for your SmartThings OAuth-In app, then continue to SmartThings to authorize Home Assistant.",
+        "description": "Enter the client ID and client secret for your SmartThings OAuth-In app. Register this exact redirect URI in SmartThings before continuing: {redirect_uri}",
         "data": {
           "client_id": "Client ID",
           "client_secret": "Client secret"
@@ -26,7 +26,7 @@
       },
       "reauth_confirm": {
         "title": "Reconnect SmartThings",
-        "description": "Reauthenticate this SmartThings account."
+        "description": "Reauthenticate this SmartThings account. The redirect URI for this Home Assistant instance is: {redirect_uri}"
       },
       "select_devices": {
         "title": "Select devices",

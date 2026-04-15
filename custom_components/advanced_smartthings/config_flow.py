@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components import http
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntry, ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_CLIENT_ID, CONF_CLIENT_SECRET, CONF_TOKEN
 from homeassistant.helpers import config_entry_oauth2_flow
@@ -57,21 +58,22 @@ class AdvancedSmartThingsConfigFlow(
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
         if user_input is None:
-            return self.async_show_form(step_id="user", data_schema=_credentials_schema())
+            return self.async_show_form(
+                step_id="user",
+                data_schema=_credentials_schema(),
+                description_placeholders={
+                    "redirect_uri": _redirect_uri_for_current_request(self.hass)
+                },
+            )
 
-        implementation = SmartThingsOAuth2Implementation(
-            self.hass,
-            _implementation_id(self.flow_id),
-            user_input[CONF_CLIENT_ID],
-            user_input[CONF_CLIENT_SECRET],
-            OAUTH_AUTHORIZE_URL,
-            OAUTH_TOKEN_URL,
-        )
-        config_entry_oauth2_flow.async_register_implementation(self.hass, DOMAIN, implementation)
         self._client_credentials = {
             CONF_CLIENT_ID: user_input[CONF_CLIENT_ID],
             CONF_CLIENT_SECRET: user_input[CONF_CLIENT_SECRET],
         }
+        implementation = self._register_local_implementation(
+            user_input[CONF_CLIENT_ID],
+            user_input[CONF_CLIENT_SECRET],
+        )
         return await self.async_step_pick_implementation({"implementation": implementation.domain})
 
     async def async_step_reauth(
@@ -86,21 +88,21 @@ class AdvancedSmartThingsConfigFlow(
         user_input: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
         if user_input is None:
-            return self.async_show_form(step_id="reauth_confirm")
+            return self.async_show_form(
+                step_id="reauth_confirm",
+                description_placeholders={
+                    "redirect_uri": _redirect_uri_for_current_request(self.hass)
+                },
+            )
         reauth_entry = self._get_reauth_entry()
         self._client_credentials = {
             CONF_CLIENT_ID: str(reauth_entry.data[CONF_CLIENT_ID]),
             CONF_CLIENT_SECRET: str(reauth_entry.data[CONF_CLIENT_SECRET]),
         }
-        implementation = SmartThingsOAuth2Implementation(
-            self.hass,
-            _implementation_id(self.flow_id),
+        implementation = self._register_local_implementation(
             self._client_credentials[CONF_CLIENT_ID],
             self._client_credentials[CONF_CLIENT_SECRET],
-            OAUTH_AUTHORIZE_URL,
-            OAUTH_TOKEN_URL,
         )
-        config_entry_oauth2_flow.async_register_implementation(self.hass, DOMAIN, implementation)
         return await self.async_step_pick_implementation({"implementation": implementation.domain})
 
     async def async_step_select_devices(
@@ -187,6 +189,22 @@ class AdvancedSmartThingsConfigFlow(
     @staticmethod
     def async_get_options_flow(config_entry: ConfigEntry) -> AdvancedSmartThingsOptionsFlow:
         return AdvancedSmartThingsOptionsFlow(config_entry)
+
+    def _register_local_implementation(
+        self,
+        client_id: str,
+        client_secret: str,
+    ) -> SmartThingsOAuth2Implementation:
+        implementation = SmartThingsOAuth2Implementation(
+            self.hass,
+            _implementation_id(self.flow_id),
+            client_id,
+            client_secret,
+            OAUTH_AUTHORIZE_URL,
+            OAUTH_TOKEN_URL,
+        )
+        config_entry_oauth2_flow.async_register_implementation(self.hass, DOMAIN, implementation)
+        return implementation
 
 
 class AdvancedSmartThingsOptionsFlow(OptionsFlow):
@@ -281,3 +299,16 @@ def _account_unique_id(location_ids: list[str]) -> str:
 
 def _implementation_id(flow_id: str) -> str:
     return f"{DOMAIN}-{flow_id}"
+
+
+def _redirect_uri_for_current_request(hass) -> str:
+    if "my" in hass.config.components:
+        return config_entry_oauth2_flow.MY_AUTH_CALLBACK_PATH
+
+    if (req := http.current_request.get()) is None:
+        return config_entry_oauth2_flow.AUTH_CALLBACK_PATH
+
+    if (ha_host := req.headers.get(config_entry_oauth2_flow.HEADER_FRONTEND_BASE)) is None:
+        return config_entry_oauth2_flow.AUTH_CALLBACK_PATH
+
+    return f"{ha_host}{config_entry_oauth2_flow.AUTH_CALLBACK_PATH}"
