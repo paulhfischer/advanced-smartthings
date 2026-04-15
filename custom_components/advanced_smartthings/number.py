@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.components.number import NumberEntity
@@ -15,6 +16,8 @@ from .capability_registry import (
     parse_duration_minutes,
 )
 from .entity import AdvancedSmartThingsEntity
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -35,6 +38,10 @@ class AdvancedSmartThingsNumberEntity(AdvancedSmartThingsEntity, NumberEntity):
     """SmartThings number entity."""
 
     entity_description: AdvancedSmartThingsNumberEntityDescription
+
+    def __init__(self, coordinator, device, description) -> None:
+        super().__init__(coordinator, device, description)
+        self._logged_static_range_fallback = False
 
     @property
     def native_value(self) -> float | None:
@@ -100,6 +107,15 @@ class AdvancedSmartThingsNumberEntity(AdvancedSmartThingsEntity, NumberEntity):
         range_values = self._resolved_range()
         if range_values is not None:
             return range_values[index]
+
+        if not self._logged_static_range_fallback:
+            LOGGER.info(
+                "Advanced SmartThings is using static %s bounds for %s because "
+                "SmartThings did not provide numeric metadata.",
+                self.entity_description.translation_key or self.entity_description.key,
+                self.entity_id,
+            )
+            self._logged_static_range_fallback = True
 
         if index == 0:
             return self.entity_description.static_min_value

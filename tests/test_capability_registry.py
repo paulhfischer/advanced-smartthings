@@ -9,6 +9,7 @@ from custom_components.advanced_smartthings.capability_registry import (
     build_entity_descriptions,
     denormalize_oven_mode,
     normalize_oven_mode,
+    resolve_standard_oven_start_mode,
 )
 from custom_components.advanced_smartthings.discovery import parse_devices
 
@@ -108,3 +109,28 @@ def test_oven_mode_labels_support_english_and_german() -> None:
         )
         == "KeepWarm"
     )
+
+
+def test_standard_oven_start_mode_mapping_is_deterministic() -> None:
+    assert (
+        resolve_standard_oven_start_mode(
+            "Convection",
+            ["Others", "ConvectionBake", "Conventional"],
+        )
+        == "ConvectionBake"
+    )
+    assert (
+        resolve_standard_oven_start_mode(
+            "KeepWarm",
+            ["warming", "ConvectionBake"],
+        )
+        == "warming"
+    )
+    assert (
+        resolve_standard_oven_start_mode(
+            "warming",
+            ["warming", "ConvectionBake"],
+        )
+        == "warming"
+    )
+    assert resolve_standard_oven_start_mode("AirFry", ["Bake", "Conventional"]) is None

@@ -70,23 +70,23 @@ OVEN_MODE_TRANSLATIONS: dict[str, dict[str, str]] = {
     "PowerConvection": {"en": "Power Convection", "de": "Power-Umluft"},
 }
 
-STANDARD_OVEN_START_MODE_CANDIDATES: dict[str, tuple[str, ...]] = {
-    "Convection": ("ConvectionBake", "ConvectionRoast"),
-    "Conventional": ("Conventional",),
-    "Bake": ("Bake",),
-    "BottomHeat": ("BottomHeat",),
-    "Bottom": ("BottomHeat",),
-    "Broil": ("Broil",),
-    "SteamCook": ("SteamCook",),
-    "SteamBake": ("SteamBake",),
-    "SteamRoast": ("SteamRoast",),
-    "Proof": ("Proof",),
-    "BreadProof": ("Proof",),
-    "ProveDough": ("Proof",),
-    "Dehydrate": ("Dehydrate",),
-    "KeepWarm": ("warming",),
-    "WarmHold": ("warming",),
-    "Defrost": ("defrosting",),
+STANDARD_OVEN_START_MODE_MAP: dict[str, str] = {
+    "Convection": "ConvectionBake",
+    "Conventional": "Conventional",
+    "Bake": "Bake",
+    "BottomHeat": "BottomHeat",
+    "Bottom": "BottomHeat",
+    "Broil": "Broil",
+    "SteamCook": "SteamCook",
+    "SteamBake": "SteamBake",
+    "SteamRoast": "SteamRoast",
+    "Proof": "Proof",
+    "BreadProof": "Proof",
+    "ProveDough": "Proof",
+    "Dehydrate": "Dehydrate",
+    "KeepWarm": "warming",
+    "WarmHold": "warming",
+    "Defrost": "defrosting",
 }
 
 
@@ -297,9 +297,9 @@ def resolve_standard_oven_start_mode(
     if raw_mode in supported_modes:
         return raw_mode
 
-    for candidate in STANDARD_OVEN_START_MODE_CANDIDATES.get(raw_mode, ()):
-        if candidate in supported_modes:
-            return candidate
+    mapped_mode = STANDARD_OVEN_START_MODE_MAP.get(raw_mode)
+    if mapped_mode in supported_modes:
+        return mapped_mode
     return None
 
 
@@ -485,6 +485,9 @@ def _build_oven_descriptions(
                     "setOvenSetpoint",
                 ),
                 range_strategy="oven_temperature_spec",
+                static_min_value=30,
+                static_max_value=300,
+                static_step=5,
                 device_class=NumberDeviceClass.TEMPERATURE,
                 native_unit_of_measurement=UnitOfTemperature.CELSIUS,
                 mode=NumberMode.BOX,

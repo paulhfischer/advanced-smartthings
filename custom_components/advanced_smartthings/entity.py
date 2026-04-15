@@ -97,8 +97,8 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
         component_id: str | None = None,
         capability: str | None = None,
         optimistic_updates: Sequence[tuple[str, str, Sequence[str], Any]] = (),
-    ) -> None:
-        await self.coordinator.api.async_send_command(
+    ) -> dict[str, Any]:
+        payload = await self.coordinator.api.async_send_command(
             self._device.device_id,
             component_id or self.entity_description.component_id,
             capability or self.entity_description.capability,
@@ -108,20 +108,30 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
         if optimistic_updates:
             self._apply_optimistic_updates(optimistic_updates)
         self.coordinator.async_schedule_post_command_refresh()
+        return payload
 
     async def _async_send_commands(
         self,
         commands: Sequence[dict[str, Any]],
         *,
         optimistic_updates: Sequence[tuple[str, str, Sequence[str], Any]] = (),
-    ) -> None:
-        await self.coordinator.api.async_send_commands(
+    ) -> dict[str, Any]:
+        payload = await self.coordinator.api.async_send_commands(
             self._device.device_id,
             list(commands),
         )
         if optimistic_updates:
             self._apply_optimistic_updates(optimistic_updates)
         self.coordinator.async_schedule_post_command_refresh()
+        return payload
+
+    async def _async_refresh_device_status(self) -> dict[str, Any]:
+        """Refresh the current device status immediately and update coordinator state."""
+        status = await self.coordinator.api.async_get_device_status(self._device.device_id)
+        updated_data = deepcopy(self.coordinator.data)
+        updated_data[self._device.device_id] = status
+        self.coordinator.async_set_updated_data(updated_data)
+        return status
 
     def _remote_control_enabled(self) -> bool | None:
         raw_value = self._lookup_path(
