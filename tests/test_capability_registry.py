@@ -84,6 +84,9 @@ def test_oven_mode_labels_support_english_and_german() -> None:
     assert normalize_oven_mode("NoOperation", "de") == "Aus"
     assert normalize_oven_mode("Convection", "en") == "Convection"
     assert normalize_oven_mode("Convection", "de") == "Umluft"
+    assert normalize_oven_mode("warming", "en") == "Keep Warm"
+    assert normalize_oven_mode("warming", "de") == "Warmhalten"
+    assert normalize_oven_mode("KeepWarm", "de") == "Warmhalten"
     assert normalize_oven_mode("BottomConvection", "de") == "Unterhitze + Umluft"
     assert normalize_oven_mode("SteamCook", "de") == "Dampfgaren"
     assert normalize_oven_mode("AirFry", "de") == "Heißluftfrittieren"
@@ -96,4 +99,12 @@ def test_oven_mode_labels_support_english_and_german() -> None:
             raw_options=["Convection", "Conventional"],
         )
         == "Convection"
+    )
+    assert (
+        denormalize_oven_mode(
+            "Warmhalten",
+            language="de",
+            raw_options=["KeepWarm", "warming"],
+        )
+        == "KeepWarm"
     )

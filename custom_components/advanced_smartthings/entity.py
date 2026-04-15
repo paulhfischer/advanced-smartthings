@@ -94,12 +94,14 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
         command: str,
         arguments: list[Any] | None = None,
         *,
+        component_id: str | None = None,
+        capability: str | None = None,
         optimistic_updates: Sequence[tuple[str, str, Sequence[str], Any]] = (),
     ) -> None:
         await self.coordinator.api.async_send_command(
             self._device.device_id,
-            self.entity_description.component_id,
-            self.entity_description.capability,
+            component_id or self.entity_description.component_id,
+            capability or self.entity_description.capability,
             command,
             arguments,
         )

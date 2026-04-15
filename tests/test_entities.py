@@ -279,6 +279,65 @@ async def test_oven_start_button_uses_standard_start_when_device_supports_it(
         await hass.async_block_till_done()
 
 
+async def test_oven_mode_includes_keep_warm_from_main_capabilities(
+    hass,
+    mock_config_entry,
+) -> None:
+    mock_config_entry.add_to_hass(hass)
+
+    oven_with_keep_warm = {
+        "components": {
+            **OVEN_STATUS["components"],
+            "main": {
+                **OVEN_STATUS["components"]["main"],
+                "samsungce.ovenMode": {
+                    "supportedOvenModes": {"value": ["Convection", "KeepWarm"]},
+                    "ovenMode": {"value": "NoOperation"},
+                },
+                "ovenMode": {
+                    "supportedOvenModes": {"value": ["Others", "warming", "ConvectionBake"]},
+                    "ovenMode": {"value": "Others"},
+                },
+            },
+        }
+    }
+
+    fake_api = _fake_api(
+        [OVEN_DEVICE],
+        {
+            "device-oven-1": oven_with_keep_warm,
+        },
+    )
+    with patch(
+        "custom_components.advanced_smartthings.async_build_api_client",
+        AsyncMock(return_value=fake_api),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        oven_mode = hass.states.get("select.backofen_oven_mode")
+        assert oven_mode is not None
+        assert "Keep Warm" in oven_mode.attributes["options"]
+
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": "select.backofen_oven_mode", "option": "Keep Warm"},
+            blocking=True,
+        )
+
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "main",
+            "samsungce.ovenMode",
+            "setOvenMode",
+            ["KeepWarm"],
+        )
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
 async def test_oven_mode_uses_home_assistant_system_language(
     hass,
     mock_config_entry,
