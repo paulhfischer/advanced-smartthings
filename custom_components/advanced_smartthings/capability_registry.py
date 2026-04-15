@@ -28,7 +28,8 @@ NumberRange = tuple[float, float, float, bool]
 
 OVEN_MODE_TRANSLATIONS: dict[str, dict[str, str]] = {
     "NoOperation": {"en": "Off", "de": "Aus"},
-    "Convection": {"en": "Convection", "de": "Umluft"},
+    "Convection": {"en": "Bake", "de": "Heißluft"},
+    "ConvectionBake": {"en": "Bake", "de": "Heißluft"},
     "Conventional": {"en": "Conventional", "de": "Ober-/Unterhitze"},
     "Bake": {"en": "Bake", "de": "Backen"},
     "Bottom": {"en": "Bottom Heat", "de": "Unterhitze"},
@@ -70,6 +71,13 @@ OVEN_MODE_TRANSLATIONS: dict[str, dict[str, str]] = {
     "PowerConvection": {"en": "Power Convection", "de": "Power-Umluft"},
 }
 
+SUPPORTED_OVEN_MODE_VALUES = (
+    "Convection",
+    "ConvectionBake",
+    "KeepWarm",
+    "warming",
+)
+
 STANDARD_OVEN_START_MODE_MAP: dict[str, str] = {
     "Convection": "ConvectionBake",
     "Conventional": "Conventional",
@@ -97,6 +105,7 @@ class AdvancedSmartThingsEntityMixin:
     component_id: str
     component_label: str | None
     capability: str
+    object_id_suffix: str | None = None
     requires_remote_control: bool = False
 
 
@@ -107,7 +116,7 @@ class AdvancedSmartThingsSensorEntityDescription(
 ):
     value_path: AttributePath
     unit_path: AttributePath = ()
-    state_kind: Literal["numeric", "string"] = "string"
+    state_kind: Literal["numeric", "string", "duration_minutes"] = "string"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -132,6 +141,7 @@ class AdvancedSmartThingsSwitchEntityDescription(
     off_arguments: tuple[Any, ...] = field(default_factory=tuple)
     supported_values_path: AttributePath = ()
     use_supported_non_off_value: bool = False
+    control_strategy: Literal["command", "oven_power"] = "command"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -144,6 +154,7 @@ class AdvancedSmartThingsSelectEntityDescription(
     options_path: AttributePath = ()
     fallback_options: tuple[str, ...] = field(default_factory=tuple)
     option_map: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    allowed_raw_options: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -177,6 +188,7 @@ class AdvancedSmartThingsNumberEntityDescription(
     static_max_value: float | None = None
     static_step: float | None = None
     cast_to_int: bool = False
+    available_when_mode_selected: bool = False
 
 
 AdvancedSmartThingsEntityDescription = (
@@ -346,6 +358,7 @@ def _build_oven_descriptions(
     )
     lamp_capability = _find_capability(device, "samsungce.lamp")
     remote_control_capability = _find_capability(device, "remoteControlStatus")
+    current_temperature_capability = _find_capability(device, "temperatureMeasurement")
     specification_capability = _find_component_capability(
         device,
         "main",
@@ -359,16 +372,39 @@ def _build_oven_descriptions(
         descriptions.append(
             AdvancedSmartThingsBinarySensorEntityDescription(
                 key=_entity_key(remote_control_capability, "remote_control"),
-                name="Remote control",
+                name="Remote controllable",
                 translation_key="oven_remote_control",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="remote_controllable",
                 component_id=remote_control_capability.component_id,
                 component_label=remote_control_capability.component_label,
                 capability=remote_control_capability.capability_id,
                 value_path=("remoteControlEnabled", "value"),
                 on_values=("true",),
                 off_values=("false",),
+            )
+        )
+
+    if current_temperature_capability is not None:
+        descriptions.append(
+            AdvancedSmartThingsSensorEntityDescription(
+                key=_entity_key(current_temperature_capability, "current_temperature"),
+                name="Current temperature",
+                translation_key="oven_current_temperature",
+                device_id=device.device_id,
+                device_label=device.label,
+                object_id_suffix="current_temperature",
+                component_id=current_temperature_capability.component_id,
+                component_label=current_temperature_capability.component_label,
+                capability=current_temperature_capability.capability_id,
+                value_path=("temperature", "value"),
+                unit_path=("temperature", "unit"),
+                state_kind="numeric",
+                device_class=SensorDeviceClass.TEMPERATURE,
+                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                state_class=SensorStateClass.MEASUREMENT,
+                icon="mdi:thermometer-lines",
             )
         )
 
@@ -379,10 +415,11 @@ def _build_oven_descriptions(
         descriptions.append(
             AdvancedSmartThingsSelectEntityDescription(
                 key=_entity_key(oven_mode_capability, "mode"),
-                name="Oven mode",
+                name="Program",
                 translation_key="oven_mode",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="program",
                 component_id=oven_mode_capability.component_id,
                 component_label=oven_mode_capability.component_label,
                 capability=oven_mode_capability.capability_id,
@@ -390,13 +427,24 @@ def _build_oven_descriptions(
                 value_path=("ovenMode", "value"),
                 command="setOvenMode",
                 options_path=("supportedOvenModes", "value"),
-                fallback_options=tuple(
-                    _enum_options(
-                        capability_definitions.get(("samsungce.ovenMode", 1)),
-                        "supportedOvenModes",
-                        "setOvenMode",
-                    )
-                ),
+                fallback_options=("Convection", "KeepWarm"),
+                allowed_raw_options=SUPPORTED_OVEN_MODE_VALUES,
+            )
+        )
+        descriptions.append(
+            AdvancedSmartThingsSensorEntityDescription(
+                key=_entity_key(oven_mode_capability, "program"),
+                name="Program",
+                translation_key="oven_program",
+                device_id=device.device_id,
+                device_label=device.label,
+                object_id_suffix="program",
+                component_id=oven_mode_capability.component_id,
+                component_label=oven_mode_capability.component_label,
+                capability=oven_mode_capability.capability_id,
+                value_path=("ovenMode", "value"),
+                state_kind="string",
+                icon="mdi:stove",
             )
         )
 
@@ -413,6 +461,7 @@ def _build_oven_descriptions(
                 translation_key="oven_timer",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="timer",
                 component_id=oven_timer_capability.component_id,
                 component_label=oven_timer_capability.component_label,
                 capability=oven_timer_capability.capability_id,
@@ -430,36 +479,58 @@ def _build_oven_descriptions(
                 cast_to_int=True,
             )
         )
-
         descriptions.append(
-            AdvancedSmartThingsButtonEntityDescription(
-                key=_entity_key(oven_timer_capability, "start_program"),
-                name="Start program",
-                translation_key="oven_start_program",
+            AdvancedSmartThingsSensorEntityDescription(
+                key=_entity_key(oven_timer_capability, "timer_status"),
+                name="Timer",
+                translation_key="oven_timer_status",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="timer",
                 component_id=oven_timer_capability.component_id,
                 component_label=oven_timer_capability.component_label,
                 capability=oven_timer_capability.capability_id,
-                requires_remote_control=True,
-                command="start",
-                press_strategy="oven_start_program",
-                icon="mdi:play",
+                value_path=("operationTime", "value"),
+                state_kind="duration_minutes",
+                native_unit_of_measurement=UnitOfTime.MINUTES,
+                icon="mdi:timer-outline",
+            )
+        )
+
+        descriptions.append(
+            AdvancedSmartThingsBinarySensorEntityDescription(
+                key=_entity_key(oven_timer_capability, "running"),
+                name="Running",
+                translation_key="oven_running",
+                device_id=device.device_id,
+                device_label=device.label,
+                object_id_suffix="running",
+                component_id=oven_timer_capability.component_id,
+                component_label=oven_timer_capability.component_label,
+                capability=oven_timer_capability.capability_id,
+                value_path=("operatingState", "value"),
+                on_values=("running", "paused"),
+                off_values=("ready", "finished", "off"),
+                icon="mdi:stove",
             )
         )
         descriptions.append(
-            AdvancedSmartThingsButtonEntityDescription(
-                key=_entity_key(oven_timer_capability, "stop_program"),
-                name="Stop program",
-                translation_key="oven_stop_program",
+            AdvancedSmartThingsSwitchEntityDescription(
+                key=_entity_key(oven_timer_capability, "power"),
+                name="Running",
+                translation_key="oven_power",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="running",
                 component_id=oven_timer_capability.component_id,
                 component_label=oven_timer_capability.component_label,
                 capability=oven_timer_capability.capability_id,
                 requires_remote_control=True,
-                command="stop",
-                icon="mdi:stop",
+                state_path=("operatingState", "value"),
+                on_command="start",
+                off_command="stop",
+                icon="mdi:stove",
+                control_strategy="oven_power",
             )
         )
 
@@ -468,10 +539,11 @@ def _build_oven_descriptions(
         descriptions.append(
             AdvancedSmartThingsNumberEntityDescription(
                 key=_entity_key(oven_setpoint_capability, "temperature"),
-                name="Temperature",
+                name="Target temperature",
                 translation_key="oven_temperature",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="target_temperature",
                 component_id=oven_setpoint_capability.component_id,
                 component_label=oven_setpoint_capability.component_label,
                 capability=oven_setpoint_capability.capability_id,
@@ -495,6 +567,26 @@ def _build_oven_descriptions(
                 icon="mdi:thermometer",
             )
         )
+        descriptions.append(
+            AdvancedSmartThingsSensorEntityDescription(
+                key=_entity_key(oven_setpoint_capability, "target_temperature_status"),
+                name="Target temperature",
+                translation_key="oven_target_temperature",
+                device_id=device.device_id,
+                device_label=device.label,
+                object_id_suffix="target_temperature",
+                component_id=oven_setpoint_capability.component_id,
+                component_label=oven_setpoint_capability.component_label,
+                capability=oven_setpoint_capability.capability_id,
+                value_path=("ovenSetpoint", "value"),
+                unit_path=("ovenSetpoint", "unit"),
+                state_kind="numeric",
+                device_class=SensorDeviceClass.TEMPERATURE,
+                native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+                state_class=SensorStateClass.MEASUREMENT,
+                icon="mdi:thermometer",
+            )
+        )
 
     if lamp_capability is not None:
         descriptions.append(
@@ -504,6 +596,7 @@ def _build_oven_descriptions(
                 translation_key="oven_lamp",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="lamp",
                 component_id=lamp_capability.component_id,
                 component_label=lamp_capability.component_label,
                 capability=lamp_capability.capability_id,
@@ -535,6 +628,7 @@ def _build_refrigerator_descriptions(
                 translation_key="refrigerator_door",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="refrigerator_door",
                 component_id=refrigerator_door.component_id,
                 component_label=refrigerator_door.component_label,
                 capability=refrigerator_door.capability_id,
@@ -554,6 +648,7 @@ def _build_refrigerator_descriptions(
                 translation_key="freezer_door",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="freezer_door",
                 component_id=freezer_door.component_id,
                 component_label=freezer_door.component_label,
                 capability=freezer_door.capability_id,
@@ -578,6 +673,7 @@ def _build_refrigerator_descriptions(
                 translation_key="refrigerator_temperature",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="refrigerator_temperature",
                 component_id=refrigerator_temperature.component_id,
                 component_label=refrigerator_temperature.component_label,
                 capability=refrigerator_temperature.capability_id,
@@ -611,6 +707,7 @@ def _build_refrigerator_descriptions(
                 translation_key="freezer_temperature",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="freezer_temperature",
                 component_id=freezer_temperature.component_id,
                 component_label=freezer_temperature.component_label,
                 capability=freezer_temperature.capability_id,
@@ -640,6 +737,7 @@ def _build_refrigerator_descriptions(
                 translation_key="current_power_consumption",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="power_consumption",
                 component_id=power_consumption.component_id,
                 component_label=power_consumption.component_label,
                 capability=power_consumption.capability_id,
@@ -661,6 +759,7 @@ def _build_refrigerator_descriptions(
                 translation_key="water_filter_usage",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="water_filter_usage",
                 component_id=water_filter.component_id,
                 component_label=water_filter.component_label,
                 capability=water_filter.capability_id,
@@ -686,6 +785,7 @@ def _build_cooktop_descriptions(device: DeviceRecord) -> list[AdvancedSmartThing
                 translation_key="cooktop_active",
                 device_id=device.device_id,
                 device_label=device.label,
+                object_id_suffix="running",
                 component_id=switch_capability.component_id,
                 component_label=switch_capability.component_label,
                 capability=switch_capability.capability_id,

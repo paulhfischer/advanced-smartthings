@@ -12,10 +12,15 @@ Only the following device classes and features are intentionally supported:
 
 - Oven
   - remote control enabled as a read-only `binary_sensor`
-  - mode/program as a writable `select`
+  - current program / off state as a read-only `sensor`
+  - current timer as a read-only `sensor`
+  - current target temperature as a read-only `sensor`
+  - current temperature as a read-only `sensor`
+  - running state as a read-only `binary_sensor`
+  - mode/program input as a writable `select`
   - timer duration as a writable `number`
   - temperature setpoint as a writable `number`
-  - explicit `Start program` and `Stop program` buttons
+  - running control as a writable `switch`
   - lamp as a writable `switch`
 - Refrigerator
   - refrigerator door open as a read-only `binary_sensor`
@@ -98,14 +103,17 @@ Notes:
 ## Mapping notes
 
 - Oven mode uses `samsungce.ovenMode`.
-- Oven timer uses `samsungce.ovenOperatingState.setOperationTime`, exposed as a duration `number` in minutes.
-- Oven temperature uses `ovenSetpoint`.
-- Oven start/stop uses `samsungce.ovenOperatingState.start` / `stop`.
+- Oven program state is exposed as a read-only sensor and shows translated values such as `Off`, `Bake`, or `Keep Warm`.
+- Oven timer is exposed both as a read-only status sensor and as a writable duration `number` in minutes.
+- Oven target temperature is exposed both as a read-only status sensor and as a writable `number`.
+- Oven current temperature is exposed as a read-only sensor.
+- Oven running state is exposed both as a read-only binary sensor and as a writable running switch that internally maps to SmartThings start/stop commands.
 - Oven remote-control readiness uses `remoteControlStatus.remoteControlEnabled`.
 - Oven lamp uses `samsungce.lamp`, mapped to a switch using supported brightness levels.
-- Oven mode, timer, and temperature act as staged program settings. Press `Start program` to send the selected mode plus the current temperature/timer to SmartThings as one program start sequence.
-- `Start program` refuses `Off` / `NoOperation` and uses the SmartThings per-mode default temperature if the oven exposes one and no temperature is currently set.
-- Oven mode, timer, temperature, and start/stop buttons are blocked when SmartThings reports remote control as disabled. Lamp control remains available.
+- Oven mode input only exposes the supported v1 programs `Bake` / `Heißluft` and `Keep Warm` / `Warmhalten`; `Off` is represented by the running switch plus the read-only program sensor.
+- When the oven is off, the program input stays available as a staged control and falls back to the SmartThings default program.
+- When switching between supported oven modes while the oven is already running, the integration stops the oven, applies the new mode, repairs any now-invalid timer or temperature values using the SmartThings per-mode defaults, and then starts again.
+- Oven mode, timer, target temperature, and running control are unavailable when SmartThings reports remote control as disabled. The read-only status entities stay available and lamp control remains available.
 - Refrigerator temperature numbers use `thermostatCoolingSetpoint` on the `cooler` and `freezer` components.
 - Refrigerator doors use `contactSensor` on the `cooler` and `freezer` components.
 - Refrigerator power consumption uses `powerConsumptionReport.powerConsumption.value.power`.

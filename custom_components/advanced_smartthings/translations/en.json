@@ -58,8 +58,11 @@
       "freezer_door": {
         "name": "Freezer door"
       },
+      "oven_running": {
+        "name": "Running"
+      },
       "oven_remote_control": {
-        "name": "Remote control"
+        "name": "Remote controllable"
       },
       "refrigerator_door": {
         "name": "Refrigerator door"
@@ -78,7 +81,7 @@
         "name": "Freezer temperature"
       },
       "oven_temperature": {
-        "name": "Temperature"
+        "name": "Target temperature"
       },
       "oven_timer": {
         "name": "Timer"
@@ -89,10 +92,22 @@
     },
     "select": {
       "oven_mode": {
-        "name": "Oven mode"
+        "name": "Program"
       }
     },
     "sensor": {
+      "oven_program": {
+        "name": "Program"
+      },
+      "oven_timer_status": {
+        "name": "Timer"
+      },
+      "oven_target_temperature": {
+        "name": "Target temperature"
+      },
+      "oven_current_temperature": {
+        "name": "Current temperature"
+      },
       "current_power_consumption": {
         "name": "Power consumption"
       },
@@ -101,6 +116,9 @@
       }
     },
     "switch": {
+      "oven_power": {
+        "name": "Running"
+      },
       "oven_lamp": {
         "name": "Lamp"
       }

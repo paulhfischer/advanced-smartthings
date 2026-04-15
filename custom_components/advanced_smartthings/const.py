@@ -26,7 +26,6 @@ POST_COMMAND_REFRESH_DELAYS = (2, 5, 10)
 PLATFORMS: tuple[Platform, ...] = (
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
-    Platform.BUTTON,
     Platform.SWITCH,
     Platform.NUMBER,
     Platform.SELECT,

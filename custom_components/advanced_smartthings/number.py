@@ -6,6 +6,7 @@ from typing import Any
 from homeassistant.components.number import NumberEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .capability_registry import (
@@ -73,34 +74,68 @@ class AdvancedSmartThingsNumberEntity(AdvancedSmartThingsEntity, NumberEntity):
 
     async def async_set_native_value(self, value: float) -> None:
         self._require_remote_control_enabled()
+        component_id = self.entity_description.component_id
+        capability = self.entity_description.capability
+        optimistic_updates = [
+            (
+                self.entity_description.component_id,
+                self.entity_description.capability,
+                self.entity_description.value_path,
+                None,
+            )
+        ]
+
+        if self.entity_description.translation_key in {"oven_timer", "oven_temperature"}:
+            raw_mode = self._preferred_oven_input_mode_raw()
+            if raw_mode is None:
+                raise HomeAssistantError("Select an oven mode before changing oven inputs.")
+            helper = self._oven_control_helper()
+            target = helper._resolve_oven_control_target(raw_mode)
+            if self.entity_description.translation_key == "oven_timer":
+                if target.timer_capability is None:
+                    raise HomeAssistantError(
+                        "This oven does not expose a writable SmartThings timer capability."
+                    )
+                component_id = target.component_id
+                capability = target.timer_capability
+                optimistic_updates = helper._mirrored_updates(
+                    target=target,
+                    capability="samsungce.ovenOperatingState",
+                    path=self.entity_description.value_path,
+                    value=None,
+                )
+            else:
+                component_id = target.component_id
+                capability = target.setpoint_capability
+                optimistic_updates = helper._mirrored_updates(
+                    target=target,
+                    capability=target.setpoint_capability,
+                    path=self.entity_description.value_path,
+                    value=None,
+                )
+
         if self.entity_description.value_kind == "duration_minutes":
             formatted_value = format_duration_minutes(value)
+            for index, update in enumerate(optimistic_updates):
+                optimistic_updates[index] = (*update[:3], formatted_value)
             await self._async_send_command(
                 self.entity_description.command,
                 [formatted_value],
-                optimistic_updates=[
-                    (
-                        self.entity_description.component_id,
-                        self.entity_description.capability,
-                        self.entity_description.value_path,
-                        formatted_value,
-                    )
-                ],
+                component_id=component_id,
+                capability=capability,
+                optimistic_updates=optimistic_updates,
             )
             return
 
         command_value: float | int = int(value) if self.entity_description.cast_to_int else value
+        for index, update in enumerate(optimistic_updates):
+            optimistic_updates[index] = (*update[:3], command_value)
         await self._async_send_command(
             self.entity_description.command,
             [command_value],
-            optimistic_updates=[
-                (
-                    self.entity_description.component_id,
-                    self.entity_description.capability,
-                    self.entity_description.value_path,
-                    command_value,
-                )
-            ],
+            component_id=component_id,
+            capability=capability,
+            optimistic_updates=optimistic_updates,
         )
 
     def _number_range_value(self, *, index: int) -> float | None:

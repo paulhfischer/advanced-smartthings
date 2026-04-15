@@ -45,12 +45,48 @@ def test_build_entity_descriptions_for_supported_v1_appliances() -> None:
         for description in oven_descriptions
     )
     assert any(
+        isinstance(description, AdvancedSmartThingsNumberEntityDescription)
+        and description.translation_key == "oven_temperature"
+        for description in oven_descriptions
+    )
+    assert any(
+        isinstance(description, AdvancedSmartThingsSensorEntityDescription)
+        and description.translation_key == "oven_current_temperature"
+        for description in oven_descriptions
+    )
+    assert any(
+        isinstance(description, AdvancedSmartThingsSensorEntityDescription)
+        and description.translation_key == "oven_program"
+        for description in oven_descriptions
+    )
+    assert any(
+        isinstance(description, AdvancedSmartThingsSensorEntityDescription)
+        and description.translation_key == "oven_timer_status"
+        for description in oven_descriptions
+    )
+    assert any(
+        isinstance(description, AdvancedSmartThingsSensorEntityDescription)
+        and description.translation_key == "oven_target_temperature"
+        for description in oven_descriptions
+    )
+    assert any(
         isinstance(description, AdvancedSmartThingsSwitchEntityDescription)
+        and description.translation_key == "oven_power"
+        for description in oven_descriptions
+    )
+    assert any(
+        isinstance(description, AdvancedSmartThingsSwitchEntityDescription)
+        and description.translation_key == "oven_lamp"
         for description in oven_descriptions
     )
     assert any(
         isinstance(description, AdvancedSmartThingsBinarySensorEntityDescription)
         and description.translation_key == "oven_remote_control"
+        for description in oven_descriptions
+    )
+    assert any(
+        isinstance(description, AdvancedSmartThingsBinarySensorEntityDescription)
+        and description.translation_key == "oven_running"
         for description in oven_descriptions
     )
 
@@ -83,8 +119,9 @@ def test_build_entity_descriptions_for_supported_v1_appliances() -> None:
 def test_oven_mode_labels_support_english_and_german() -> None:
     assert normalize_oven_mode("NoOperation", "en") == "Off"
     assert normalize_oven_mode("NoOperation", "de") == "Aus"
-    assert normalize_oven_mode("Convection", "en") == "Convection"
-    assert normalize_oven_mode("Convection", "de") == "Umluft"
+    assert normalize_oven_mode("Convection", "en") == "Bake"
+    assert normalize_oven_mode("Convection", "de") == "Heißluft"
+    assert normalize_oven_mode("ConvectionBake", "de") == "Heißluft"
     assert normalize_oven_mode("warming", "en") == "Keep Warm"
     assert normalize_oven_mode("warming", "de") == "Warmhalten"
     assert normalize_oven_mode("KeepWarm", "de") == "Warmhalten"
@@ -95,7 +132,7 @@ def test_oven_mode_labels_support_english_and_german() -> None:
 
     assert (
         denormalize_oven_mode(
-            "Umluft",
+            "Heißluft",
             language="de",
             raw_options=["Convection", "Conventional"],
         )

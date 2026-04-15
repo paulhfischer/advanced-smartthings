@@ -12,10 +12,15 @@ Bewusst unterstützt werden nur diese Geräteklassen und Funktionen:
 
 - Backofen
   - Fernsteuerung aktiviert als nur lesbares `binary_sensor`
-  - Modus/Programm als schreibbares `select`
+  - aktueller Programm-/Aus-Status als nur lesbares `sensor`
+  - aktueller Timer als nur lesbares `sensor`
+  - aktuelle Zieltemperatur als nur lesbares `sensor`
+  - aktuelle Ist-Temperatur als nur lesbares `sensor`
+  - Betriebszustand als nur lesbares `binary_sensor`
+  - Modus-/Programm-Eingabe als schreibbares `select`
   - Timer-Dauer als schreibbares `number`
   - Temperatur-Sollwert als schreibbares `number`
-  - explizite Buttons `Programm starten` und `Programm stoppen`
+  - Betriebssteuerung als schreibbares `switch`
   - Beleuchtung als schreibbares `switch`
 - Kühlschrank
   - Kühlschranktür offen als nur lesbares `binary_sensor`
@@ -98,14 +103,17 @@ Hinweise:
 ## Mapping-Hinweise
 
 - Backofen-Modi verwenden `samsungce.ovenMode`.
-- Der Backofen-Timer verwendet `samsungce.ovenOperatingState.setOperationTime` und wird als Dauer-`number` in Minuten dargestellt.
-- Die Backofen-Temperatur verwendet `ovenSetpoint`.
-- Starten/Stoppen des Backofens verwendet `samsungce.ovenOperatingState.start` bzw. `stop`.
+- Der aktuelle Backofen-Programmstatus wird als nur lesbarer Sensor bereitgestellt und zeigt übersetzte Werte wie `Aus`, `Heißluft` oder `Warmhalten`.
+- Der Backofen-Timer wird sowohl als nur lesbarer Status-Sensor als auch als schreibbares Dauer-`number` in Minuten bereitgestellt.
+- Die Backofen-Zieltemperatur wird sowohl als nur lesbarer Status-Sensor als auch als schreibbares `number` bereitgestellt.
+- Die aktuelle Backofen-Ist-Temperatur wird als nur lesbarer Sensor bereitgestellt.
+- Der Backofen-Betriebszustand wird sowohl als nur lesbares `binary_sensor` als auch als schreibbarer Lauf-/Stopp-Schalter bereitgestellt, der intern auf SmartThings-Start/Stop-Kommandos abgebildet wird.
 - Die Fernsteuerbarkeit des Backofens verwendet `remoteControlStatus.remoteControlEnabled`.
 - Die Backofen-Beleuchtung verwendet `samsungce.lamp` und wird als Schalter über unterstützte Helligkeitsstufen abgebildet.
-- Backofen-Modus, Timer und Temperatur dienen als vorbereitete Programmeinstellungen. Mit `Programm starten` sendet die Integration Modus plus aktuelle Temperatur/Timer als zusammengehörige Start-Sequenz an SmartThings.
-- `Programm starten` verweigert `Aus` / `NoOperation` und verwendet den von SmartThings gelieferten Standard-Temperaturwert des gewählten Modus, falls noch kein Temperaturwert gesetzt ist.
-- Schreiben auf Backofen-Modus, Timer, Temperatur sowie Start-/Stop-Buttons wird blockiert, wenn SmartThings die Fernsteuerung als deaktiviert meldet. Die Beleuchtung bleibt trotzdem steuerbar.
+- Die Backofen-Programmeingabe bietet in v1 nur die unterstützten Programme `Heißluft` und `Warmhalten`; `Aus` wird stattdessen über den Lauf-/Stopp-Schalter plus den nur lesbaren Programmsensor dargestellt.
+- Wenn der Backofen ausgeschaltet ist, bleibt die Programmeingabe als vorbereiteter Steuerwert verfügbar und fällt auf das von SmartThings gemeldete Standardprogramm zurück.
+- Wenn während des Betriebs zwischen den unterstützten Backofen-Modi gewechselt wird, stoppt die Integration den Backofen, setzt den neuen Modus, repariert ggf. für diesen Modus ungültige Timer-/Temperaturwerte mit den von SmartThings gelieferten Standardwerten und startet anschließend erneut.
+- Programmeingabe, Timer, Zieltemperatur und Lauf-/Stopp-Steuerung werden als nicht verfügbar markiert, wenn SmartThings die Fernsteuerung als deaktiviert meldet. Die nur lesbaren Status-Entitäten bleiben sichtbar, und die Beleuchtung bleibt trotzdem steuerbar.
 - Kühlschrank-Temperaturen verwenden `thermostatCoolingSetpoint` auf den Komponenten `cooler` und `freezer`.
 - Kühlschrank-Türen verwenden `contactSensor` auf den Komponenten `cooler` und `freezer`.
 - Die Leistungsaufnahme des Kühlschranks verwendet `powerConsumptionReport.powerConsumption.value.power`.

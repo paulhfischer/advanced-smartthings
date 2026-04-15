@@ -58,8 +58,11 @@
       "freezer_door": {
         "name": "Gefrierschranktür"
       },
+      "oven_running": {
+        "name": "In Betrieb"
+      },
       "oven_remote_control": {
-        "name": "Fernsteuerung"
+        "name": "Fernsteuerbar"
       },
       "refrigerator_door": {
         "name": "Kühlschranktür"
@@ -78,7 +81,7 @@
         "name": "Gefrierschranktemperatur"
       },
       "oven_temperature": {
-        "name": "Temperatur"
+        "name": "Zieltemperatur"
       },
       "oven_timer": {
         "name": "Timer"
@@ -89,10 +92,22 @@
     },
     "select": {
       "oven_mode": {
-        "name": "Backmodus"
+        "name": "Programm"
       }
     },
     "sensor": {
+      "oven_program": {
+        "name": "Programm"
+      },
+      "oven_timer_status": {
+        "name": "Timer"
+      },
+      "oven_target_temperature": {
+        "name": "Zieltemperatur"
+      },
+      "oven_current_temperature": {
+        "name": "Aktuelle Temperatur"
+      },
       "current_power_consumption": {
         "name": "Leistungsaufnahme"
       },
@@ -101,6 +116,9 @@
       }
     },
     "switch": {
+      "oven_power": {
+        "name": "In Betrieb"
+      },
       "oven_lamp": {
         "name": "Beleuchtung"
       }

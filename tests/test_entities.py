@@ -88,7 +88,7 @@ def _oven_status_with_standard_start() -> dict:
             "main": {
                 **OVEN_STATUS["components"]["main"],
                 "samsungce.ovenMode": {
-                    "supportedOvenModes": {"value": ["Convection", "Conventional", "KeepWarm"]},
+                    "supportedOvenModes": {"value": ["Convection", "KeepWarm"]},
                     "ovenMode": {"value": "NoOperation"},
                 },
                 "samsungce.ovenOperatingState": {
@@ -97,9 +97,7 @@ def _oven_status_with_standard_start() -> dict:
                     "ovenJobState": {"value": "ready"},
                 },
                 "ovenMode": {
-                    "supportedOvenModes": {
-                        "value": ["Others", "ConvectionBake", "Conventional", "warming"]
-                    },
+                    "supportedOvenModes": {"value": ["Others", "ConvectionBake", "warming"]},
                     "ovenMode": {"value": "Others"},
                 },
                 "ovenOperatingState": {
@@ -115,7 +113,7 @@ def _oven_status_with_standard_start() -> dict:
             "cavity-01": {
                 **OVEN_STATUS["components"]["cavity-01"],
                 "samsungce.ovenMode": {
-                    "supportedOvenModes": {"value": ["Convection", "Conventional", "KeepWarm"]},
+                    "supportedOvenModes": {"value": ["Convection", "KeepWarm"]},
                     "ovenMode": {"value": "NoOperation"},
                 },
                 "samsungce.ovenOperatingState": {
@@ -152,16 +150,16 @@ async def test_setup_entry_creates_supported_native_entities(
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        assert hass.states.get("select.backofen_oven_mode").state == "Off"
-        assert hass.states.get("binary_sensor.backofen_remote_control").state == "on"
-        assert (
-            hass.states.get("select.backofen_oven_mode").attributes["remote_control_enabled"]
-            is True
-        )
-        assert hass.states.get("button.backofen_start_program") is not None
-        assert hass.states.get("button.backofen_stop_program") is not None
+        assert hass.states.get("select.backofen_program").state == "Bake"
+        assert hass.states.get("sensor.backofen_program").state == "Off"
+        assert hass.states.get("sensor.backofen_timer").state == "90.0"
+        assert hass.states.get("sensor.backofen_target_temperature").state == "180"
+        assert hass.states.get("binary_sensor.backofen_remote_controllable").state == "on"
+        assert hass.states.get("binary_sensor.backofen_running").state == "off"
+        assert hass.states.get("switch.backofen_running").state == "off"
+        assert hass.states.get("sensor.backofen_current_temperature").state == "33"
         assert hass.states.get("number.backofen_timer").state == "90.0"
-        assert hass.states.get("number.backofen_temperature").state == "180.0"
+        assert hass.states.get("number.backofen_target_temperature").state == "180.0"
         assert hass.states.get("switch.backofen_lamp").state == "off"
 
         assert hass.states.get("binary_sensor.kuhlschrank_refrigerator_door").state == "off"
@@ -170,8 +168,7 @@ async def test_setup_entry_creates_supported_native_entities(
         assert hass.states.get("number.kuhlschrank_freezer_temperature").state == "-18.0"
         assert hass.states.get("sensor.kuhlschrank_power_consumption").state == "1458"
         assert hass.states.get("sensor.kuhlschrank_water_filter_usage").state == "13"
-
-        assert hass.states.get("binary_sensor.kochfeld_cooktop_active").state == "off"
+        assert hass.states.get("binary_sensor.kochfeld_running").state == "off"
 
         assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -215,16 +212,24 @@ async def test_oven_timer_has_safe_bounds_when_mode_spec_lacks_operation_time(
 
     fake_api = _fake_api(
         [OVEN_DEVICE],
-        {
-            "device-oven-1": oven_without_timer_spec,
-        },
+        {"device-oven-1": oven_without_timer_spec},
     )
-    with patch(
-        "custom_components.advanced_smartthings.async_build_api_client",
-        AsyncMock(return_value=fake_api),
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
+
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": "select.backofen_program", "option": "Bake"},
+            blocking=True,
+        )
 
         timer_state = hass.states.get("number.backofen_timer")
         assert timer_state is not None
@@ -287,18 +292,26 @@ async def test_oven_temperature_has_safe_bounds_when_mode_spec_lacks_temperature
 
     fake_api = _fake_api(
         [OVEN_DEVICE],
-        {
-            "device-oven-1": oven_without_temperature_spec,
-        },
+        {"device-oven-1": oven_without_temperature_spec},
     )
-    with patch(
-        "custom_components.advanced_smartthings.async_build_api_client",
-        AsyncMock(return_value=fake_api),
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        temperature_state = hass.states.get("number.backofen_temperature")
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": "select.backofen_program", "option": "Bake"},
+            blocking=True,
+        )
+
+        temperature_state = hass.states.get("number.backofen_target_temperature")
         assert temperature_state is not None
         assert temperature_state.attributes["min"] == 30
         assert temperature_state.attributes["max"] == 300
@@ -308,7 +321,7 @@ async def test_oven_temperature_has_safe_bounds_when_mode_spec_lacks_temperature
         await hass.async_block_till_done()
 
 
-async def test_oven_start_button_uses_standard_start_when_device_supports_it(
+async def test_oven_power_switch_uses_standard_start_when_device_supports_it(
     hass,
     mock_config_entry,
 ) -> None:
@@ -318,9 +331,7 @@ async def test_oven_start_button_uses_standard_start_when_device_supports_it(
 
     fake_api = _fake_api(
         [oven_with_standard_start],
-        {
-            "device-oven-1": oven_with_standard_start_status,
-        },
+        {"device-oven-1": oven_with_standard_start_status},
     )
     start_calls = 0
 
@@ -372,7 +383,7 @@ async def test_oven_start_button_uses_standard_start_when_device_supports_it(
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": "select.backofen_oven_mode", "option": "Convection"},
+            {"entity_id": "select.backofen_program", "option": "Bake"},
             blocking=True,
         )
         await hass.services.async_call(
@@ -384,13 +395,13 @@ async def test_oven_start_button_uses_standard_start_when_device_supports_it(
         await hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": "number.backofen_temperature", "value": 200},
+            {"entity_id": "number.backofen_target_temperature", "value": 200},
             blocking=True,
         )
         await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.backofen_start_program"},
+            "switch",
+            "turn_on",
+            {"entity_id": "switch.backofen_running"},
             blocking=True,
         )
 
@@ -427,7 +438,7 @@ async def test_oven_start_button_uses_standard_start_when_device_supports_it(
         await hass.async_block_till_done()
 
 
-async def test_oven_start_button_uses_warming_start_argument_for_keep_warm_mode(
+async def test_oven_power_switch_uses_warming_start_argument_for_keep_warm_mode(
     hass,
     mock_config_entry,
 ) -> None:
@@ -438,9 +449,7 @@ async def test_oven_start_button_uses_warming_start_argument_for_keep_warm_mode(
 
     fake_api = _fake_api(
         [oven_with_standard_start],
-        {
-            "device-oven-1": oven_with_standard_start_status,
-        },
+        {"device-oven-1": oven_with_standard_start_status},
     )
     start_calls = 0
 
@@ -492,7 +501,7 @@ async def test_oven_start_button_uses_warming_start_argument_for_keep_warm_mode(
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": "select.backofen_oven_mode", "option": "Keep Warm"},
+            {"entity_id": "select.backofen_program", "option": "Keep Warm"},
             blocking=True,
         )
         await hass.services.async_call(
@@ -504,13 +513,13 @@ async def test_oven_start_button_uses_warming_start_argument_for_keep_warm_mode(
         await hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": "number.backofen_temperature", "value": 120},
+            {"entity_id": "number.backofen_target_temperature", "value": 120},
             blocking=True,
         )
         await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.backofen_start_program"},
+            "switch",
+            "turn_on",
+            {"entity_id": "switch.backofen_running"},
             blocking=True,
         )
 
@@ -526,7 +535,135 @@ async def test_oven_start_button_uses_warming_start_argument_for_keep_warm_mode(
         await hass.async_block_till_done()
 
 
-async def test_oven_start_button_retries_once_before_succeeding(
+async def test_oven_mode_change_restarts_running_oven(
+    hass,
+    mock_config_entry,
+) -> None:
+    mock_config_entry.add_to_hass(hass)
+
+    oven_with_standard_start = _oven_device_with_standard_start()
+    running_status = _oven_status_with_running_component(
+        _oven_status_with_standard_start(),
+        component_id="main",
+    )
+    running_status["components"]["main"]["samsungce.ovenMode"]["ovenMode"] = {"value": "Convection"}
+    running_status["components"]["cavity-01"]["samsungce.ovenMode"]["ovenMode"] = {
+        "value": "Convection"
+    }
+    running_status["components"]["main"]["ovenSetpoint"]["ovenSetpoint"] = {
+        "value": 200,
+        "unit": "C",
+    }
+    running_status["components"]["cavity-01"]["ovenSetpoint"]["ovenSetpoint"] = {
+        "value": 200,
+        "unit": "C",
+    }
+    running_status["components"]["main"]["samsungce.ovenOperatingState"]["operationTime"] = {
+        "value": "00:45:00"
+    }
+    running_status["components"]["cavity-01"]["samsungce.ovenOperatingState"]["operationTime"] = {
+        "value": "00:45:00"
+    }
+
+    fake_api = _fake_api(
+        [oven_with_standard_start],
+        {"device-oven-1": running_status},
+    )
+    start_calls = 0
+
+    async def send_command(
+        device_id: str,
+        component_id: str,
+        capability: str,
+        command: str,
+        arguments: list | None = None,
+    ) -> dict:
+        nonlocal start_calls
+        if capability == "ovenOperatingState" and command == "start":
+            start_calls += 1
+        return {}
+
+    async def get_status(device_id: str) -> dict:
+        if start_calls >= 1:
+            restarted = _oven_status_with_running_component(
+                _oven_status_with_standard_start(),
+                component_id="main",
+            )
+            restarted["components"]["main"]["samsungce.ovenMode"]["ovenMode"] = {
+                "value": "KeepWarm"
+            }
+            restarted["components"]["cavity-01"]["samsungce.ovenMode"]["ovenMode"] = {
+                "value": "KeepWarm"
+            }
+            return restarted
+        return running_status
+
+    fake_api.async_send_command.side_effect = send_command
+    fake_api.async_get_device_status.side_effect = get_status
+
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.button.asyncio.sleep", AsyncMock()),
+        patch(
+            "custom_components.advanced_smartthings.button.POSTSTART_VERIFY_TIMEOUT_SECONDS",
+            0.01,
+        ),
+        patch(
+            "custom_components.advanced_smartthings.button.PRESTART_VERIFY_TIMEOUT_SECONDS",
+            0.01,
+        ),
+        patch(
+            "custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS",
+            (),
+        ),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": "select.backofen_program", "option": "Keep Warm"},
+            blocking=True,
+        )
+
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "main",
+            "ovenOperatingState",
+            "stop",
+            [],
+        )
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "main",
+            "samsungce.ovenMode",
+            "setOvenMode",
+            ["KeepWarm"],
+        )
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "main",
+            "ovenSetpoint",
+            "setOvenSetpoint",
+            [70],
+        )
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "main",
+            "ovenOperatingState",
+            "start",
+            ["warming", 2700, 70],
+        )
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def test_oven_power_switch_retries_once_before_succeeding(
     hass,
     mock_config_entry,
     caplog,
@@ -539,9 +676,7 @@ async def test_oven_start_button_retries_once_before_succeeding(
 
     fake_api = _fake_api(
         [oven_with_standard_start],
-        {
-            "device-oven-1": oven_with_standard_start_status,
-        },
+        {"device-oven-1": oven_with_standard_start_status},
     )
     start_calls = 0
 
@@ -593,7 +728,7 @@ async def test_oven_start_button_retries_once_before_succeeding(
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": "select.backofen_oven_mode", "option": "Convection"},
+            {"entity_id": "select.backofen_program", "option": "Bake"},
             blocking=True,
         )
         await hass.services.async_call(
@@ -605,13 +740,13 @@ async def test_oven_start_button_retries_once_before_succeeding(
         await hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": "number.backofen_temperature", "value": 200},
+            {"entity_id": "number.backofen_target_temperature", "value": 200},
             blocking=True,
         )
         await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.backofen_start_program"},
+            "switch",
+            "turn_on",
+            {"entity_id": "switch.backofen_running"},
             blocking=True,
         )
 
@@ -628,7 +763,7 @@ async def test_oven_start_button_retries_once_before_succeeding(
         await hass.async_block_till_done()
 
 
-async def test_oven_start_button_reports_failure_after_retry_when_oven_stays_idle(
+async def test_oven_power_switch_reports_failure_after_retry_when_oven_stays_idle(
     hass,
     mock_config_entry,
     caplog,
@@ -641,9 +776,7 @@ async def test_oven_start_button_reports_failure_after_retry_when_oven_stays_idl
 
     fake_api = _fake_api(
         [oven_with_standard_start],
-        {
-            "device-oven-1": oven_with_standard_start_status,
-        },
+        {"device-oven-1": oven_with_standard_start_status},
     )
 
     with (
@@ -671,7 +804,7 @@ async def test_oven_start_button_reports_failure_after_retry_when_oven_stays_idl
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": "select.backofen_oven_mode", "option": "Keep Warm"},
+            {"entity_id": "select.backofen_program", "option": "Keep Warm"},
             blocking=True,
         )
         await hass.services.async_call(
@@ -683,15 +816,15 @@ async def test_oven_start_button_reports_failure_after_retry_when_oven_stays_idl
         await hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": "number.backofen_temperature", "value": 120},
+            {"entity_id": "number.backofen_target_temperature", "value": 120},
             blocking=True,
         )
 
         with pytest.raises(HomeAssistantError, match="remained idle"):
             await hass.services.async_call(
-                "button",
-                "press",
-                {"entity_id": "button.backofen_start_program"},
+                "switch",
+                "turn_on",
+                {"entity_id": "switch.backofen_running"},
                 blocking=True,
             )
 
@@ -709,24 +842,22 @@ async def test_oven_start_button_reports_failure_after_retry_when_oven_stays_idl
         await hass.async_block_till_done()
 
 
-async def test_oven_mode_includes_keep_warm_from_main_capabilities(
+async def test_oven_mode_only_exposes_supported_v1_options(
     hass,
     mock_config_entry,
 ) -> None:
     mock_config_entry.add_to_hass(hass)
 
-    oven_with_keep_warm = {
+    oven_with_extra_modes = {
         "components": {
             **OVEN_STATUS["components"],
-            "main": {
-                **OVEN_STATUS["components"]["main"],
+            "cavity-01": {
+                **OVEN_STATUS["components"]["cavity-01"],
                 "samsungce.ovenMode": {
-                    "supportedOvenModes": {"value": ["Convection", "KeepWarm"]},
+                    "supportedOvenModes": {
+                        "value": ["Convection", "KeepWarm", "AirFry", "Conventional"]
+                    },
                     "ovenMode": {"value": "NoOperation"},
-                },
-                "ovenMode": {
-                    "supportedOvenModes": {"value": ["Others", "warming", "ConvectionBake"]},
-                    "ovenMode": {"value": "Others"},
                 },
             },
         }
@@ -734,31 +865,32 @@ async def test_oven_mode_includes_keep_warm_from_main_capabilities(
 
     fake_api = _fake_api(
         [OVEN_DEVICE],
-        {
-            "device-oven-1": oven_with_keep_warm,
-        },
+        {"device-oven-1": oven_with_extra_modes},
     )
-    with patch(
-        "custom_components.advanced_smartthings.async_build_api_client",
-        AsyncMock(return_value=fake_api),
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        oven_mode = hass.states.get("select.backofen_oven_mode")
+        oven_mode = hass.states.get("select.backofen_program")
         assert oven_mode is not None
-        assert "Keep Warm" in oven_mode.attributes["options"]
+        assert oven_mode.attributes["options"] == ["Bake", "Keep Warm"]
 
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": "select.backofen_oven_mode", "option": "Keep Warm"},
+            {"entity_id": "select.backofen_program", "option": "Keep Warm"},
             blocking=True,
         )
 
         fake_api.async_send_command.assert_any_await(
             "device-oven-1",
-            "main",
+            "cavity-01",
             "samsungce.ovenMode",
             "setOvenMode",
             ["KeepWarm"],
@@ -777,26 +909,28 @@ async def test_oven_mode_uses_home_assistant_system_language(
 
     fake_api = _fake_api(
         [OVEN_DEVICE],
-        {
-            "device-oven-1": OVEN_STATUS,
-        },
+        {"device-oven-1": OVEN_STATUS},
     )
-    with patch(
-        "custom_components.advanced_smartthings.async_build_api_client",
-        AsyncMock(return_value=fake_api),
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        oven_mode = hass.states.get("select.backofen_backmodus")
+        oven_mode = hass.states.get("select.backofen_program")
         assert oven_mode is not None
-        assert oven_mode.state == "Aus"
-        assert "Umluft" in oven_mode.attributes["options"]
+        assert oven_mode.state == "Heißluft"
+        assert oven_mode.attributes["options"] == ["Heißluft", "Warmhalten"]
+        assert hass.states.get("sensor.backofen_program").state == "Aus"
 
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": "select.backofen_backmodus", "option": "Umluft"},
+            {"entity_id": "select.backofen_program", "option": "Heißluft"},
             blocking=True,
         )
 
@@ -833,11 +967,14 @@ async def test_oven_writes_are_blocked_when_remote_control_is_disabled(
     )
     mock_config_entry.add_to_hass(hass)
 
+    oven_status_remote_disabled = deepcopy(OVEN_STATUS_REMOTE_DISABLED)
+    oven_status_remote_disabled["components"]["cavity-01"]["samsungce.ovenMode"]["ovenMode"] = {
+        "value": "Convection"
+    }
+
     fake_api = _fake_api(
         [OVEN_DEVICE],
-        {
-            "device-oven-1": OVEN_STATUS_REMOTE_DISABLED,
-        },
+        {"device-oven-1": oven_status_remote_disabled},
     )
     with patch(
         "custom_components.advanced_smartthings.async_build_api_client",
@@ -846,35 +983,15 @@ async def test_oven_writes_are_blocked_when_remote_control_is_disabled(
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        assert hass.states.get("binary_sensor.backofen_remote_control").state == "off"
-        assert (
-            hass.states.get("number.backofen_temperature").attributes["remote_control_enabled"]
-            is False
-        )
-
-        with pytest.raises(HomeAssistantError, match="Remote control is disabled"):
-            await hass.services.async_call(
-                "select",
-                "select_option",
-                {"entity_id": "select.backofen_oven_mode", "option": "Convection"},
-                blocking=True,
-            )
-
-        with pytest.raises(HomeAssistantError, match="Remote control is disabled"):
-            await hass.services.async_call(
-                "number",
-                "set_value",
-                {"entity_id": "number.backofen_temperature", "value": 200},
-                blocking=True,
-            )
-
-        with pytest.raises(HomeAssistantError, match="Remote control is disabled"):
-            await hass.services.async_call(
-                "button",
-                "press",
-                {"entity_id": "button.backofen_start_program"},
-                blocking=True,
-            )
+        assert hass.states.get("binary_sensor.backofen_remote_controllable").state == "off"
+        assert hass.states.get("sensor.backofen_program").state == "Bake"
+        assert hass.states.get("sensor.backofen_timer").state == "90.0"
+        assert hass.states.get("sensor.backofen_target_temperature").state == "180"
+        assert hass.states.get("select.backofen_program").state == "unavailable"
+        assert hass.states.get("number.backofen_target_temperature").state == "unavailable"
+        assert hass.states.get("number.backofen_timer").state == "unavailable"
+        assert hass.states.get("switch.backofen_running").state == "unavailable"
+        assert hass.states.get("switch.backofen_lamp").state == "off"
 
         await hass.services.async_call(
             "switch",
@@ -891,7 +1008,105 @@ async def test_oven_writes_are_blocked_when_remote_control_is_disabled(
         await hass.async_block_till_done()
 
 
-async def test_oven_start_button_requires_selected_mode(
+async def test_oven_power_switch_uses_default_program_while_the_oven_is_off(
+    hass,
+    mock_config_entry,
+) -> None:
+    mock_config_entry.add_to_hass(hass)
+
+    oven_with_standard_start = _oven_device_with_standard_start()
+    oven_with_standard_start_status = _oven_status_with_standard_start()
+    fake_api = _fake_api(
+        [oven_with_standard_start],
+        {"device-oven-1": oven_with_standard_start_status},
+    )
+    start_calls = 0
+
+    async def send_command(
+        device_id: str,
+        component_id: str,
+        capability: str,
+        command: str,
+        arguments: list | None = None,
+    ) -> dict:
+        del device_id, arguments
+        nonlocal start_calls
+        if component_id == "main" and capability == "ovenOperatingState" and command == "start":
+            start_calls += 1
+        return {}
+
+    async def get_status(device_id: str) -> dict:
+        del device_id
+        if start_calls >= 1:
+            running_status = _oven_status_with_running_component(
+                _oven_status_with_standard_start(),
+                component_id="main",
+            )
+            running_status["components"]["main"]["samsungce.ovenMode"]["ovenMode"] = {
+                "value": "Convection"
+            }
+            running_status["components"]["cavity-01"]["samsungce.ovenMode"]["ovenMode"] = {
+                "value": "Convection"
+            }
+            return running_status
+        return oven_with_standard_start_status
+
+    fake_api.async_send_command.side_effect = send_command
+    fake_api.async_get_device_status.side_effect = get_status
+
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.button.asyncio.sleep", AsyncMock()),
+        patch(
+            "custom_components.advanced_smartthings.button.POSTSTART_VERIFY_TIMEOUT_SECONDS",
+            0.01,
+        ),
+        patch(
+            "custom_components.advanced_smartthings.button.PRESTART_VERIFY_TIMEOUT_SECONDS",
+            0.01,
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        assert hass.states.get("select.backofen_program").state == "Bake"
+
+        await hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": "number.backofen_timer", "value": 45},
+            blocking=True,
+        )
+        await hass.services.async_call(
+            "number",
+            "set_value",
+            {"entity_id": "number.backofen_target_temperature", "value": 200},
+            blocking=True,
+        )
+        await hass.services.async_call(
+            "switch",
+            "turn_on",
+            {"entity_id": "switch.backofen_running"},
+            blocking=True,
+        )
+
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "main",
+            "ovenOperatingState",
+            "start",
+            ["ConvectionBake", 2700, 200],
+        )
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def test_oven_inputs_stay_available_while_the_oven_is_off(
     hass,
     mock_config_entry,
 ) -> None:
@@ -899,24 +1114,35 @@ async def test_oven_start_button_requires_selected_mode(
 
     fake_api = _fake_api(
         [OVEN_DEVICE],
-        {
-            "device-oven-1": OVEN_STATUS,
-        },
+        {"device-oven-1": OVEN_STATUS},
     )
-    with patch(
-        "custom_components.advanced_smartthings.async_build_api_client",
-        AsyncMock(return_value=fake_api),
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
-        with pytest.raises(HomeAssistantError, match="Select an oven mode"):
-            await hass.services.async_call(
-                "button",
-                "press",
-                {"entity_id": "button.backofen_start_program"},
-                blocking=True,
-            )
+        assert hass.states.get("select.backofen_program").state == "Bake"
+        assert hass.states.get("number.backofen_timer").state == "90.0"
+        assert hass.states.get("number.backofen_target_temperature").state == "180.0"
+        assert hass.states.get("sensor.backofen_program").state == "Off"
+        assert hass.states.get("sensor.backofen_timer").state == "90.0"
+        assert hass.states.get("sensor.backofen_target_temperature").state == "180"
+
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": "select.backofen_program", "option": "Bake"},
+            blocking=True,
+        )
+
+        assert hass.states.get("number.backofen_timer").state == "90.0"
+        assert hass.states.get("number.backofen_target_temperature").state == "180.0"
+        assert hass.states.get("sensor.backofen_program").state == "Bake"
 
         assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -950,9 +1176,12 @@ async def test_writable_entities_send_explicit_commands(
             "device-fridge-1": FRIDGE_STATUS,
         },
     )
-    with patch(
-        "custom_components.advanced_smartthings.async_build_api_client",
-        AsyncMock(return_value=fake_api),
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
@@ -960,7 +1189,7 @@ async def test_writable_entities_send_explicit_commands(
         await hass.services.async_call(
             "select",
             "select_option",
-            {"entity_id": "select.backofen_oven_mode", "option": "Convection"},
+            {"entity_id": "select.backofen_program", "option": "Bake"},
             blocking=True,
         )
         await hass.services.async_call(
@@ -972,7 +1201,7 @@ async def test_writable_entities_send_explicit_commands(
         await hass.services.async_call(
             "number",
             "set_value",
-            {"entity_id": "number.backofen_temperature", "value": 200},
+            {"entity_id": "number.backofen_target_temperature", "value": 200},
             blocking=True,
         )
         await hass.services.async_call(
@@ -982,21 +1211,15 @@ async def test_writable_entities_send_explicit_commands(
             blocking=True,
         )
         await hass.services.async_call(
-            "button",
-            "press",
-            {"entity_id": "button.backofen_stop_program"},
-            blocking=True,
-        )
-        await hass.services.async_call(
             "number",
             "set_value",
             {"entity_id": "number.kuhlschrank_refrigerator_temperature", "value": 4},
             blocking=True,
         )
 
-        assert hass.states.get("select.backofen_oven_mode").state == "Convection"
+        assert hass.states.get("select.backofen_program").state == "Bake"
         assert hass.states.get("number.backofen_timer").state == "45.0"
-        assert hass.states.get("number.backofen_temperature").state == "200.0"
+        assert hass.states.get("number.backofen_target_temperature").state == "200.0"
         assert hass.states.get("switch.backofen_lamp").state == "on"
         assert hass.states.get("number.kuhlschrank_refrigerator_temperature").state == "4.0"
 
@@ -1021,13 +1244,6 @@ async def test_writable_entities_send_explicit_commands(
             "device-oven-1", "main", "samsungce.lamp", "setBrightnessLevel", ["high"]
         )
         fake_api.async_send_command.assert_any_await(
-            "device-oven-1",
-            "cavity-01",
-            "samsungce.ovenOperatingState",
-            "stop",
-            [],
-        )
-        fake_api.async_send_command.assert_any_await(
             "device-fridge-1",
             "cooler",
             "thermostatCoolingSetpoint",
@@ -1039,7 +1255,7 @@ async def test_writable_entities_send_explicit_commands(
         await hass.async_block_till_done()
 
 
-async def test_oven_start_button_requires_temperature_before_start(
+async def test_oven_power_switch_requires_temperature_before_start(
     hass,
     mock_config_entry,
 ) -> None:
@@ -1051,11 +1267,13 @@ async def test_oven_start_button_requires_temperature_before_start(
             "cavity-01": {
                 **OVEN_STATUS["components"]["cavity-01"],
                 "samsungce.ovenMode": {
-                    "supportedOvenModes": {"value": ["Convection", "Conventional"]},
+                    "supportedOvenModes": {"value": ["Convection", "KeepWarm"]},
                     "ovenMode": {"value": "Convection"},
                 },
                 "samsungce.ovenOperatingState": {
                     "operationTime": {"value": "00:30:00"},
+                    "operatingState": {"value": "ready"},
+                    "ovenJobState": {"value": "ready"},
                 },
                 "ovenSetpoint": {
                     "ovenSetpoint": {"value": 0, "unit": "C"},
@@ -1066,22 +1284,23 @@ async def test_oven_start_button_requires_temperature_before_start(
 
     fake_api = _fake_api(
         [OVEN_DEVICE],
-        {
-            "device-oven-1": oven_without_setpoint,
-        },
+        {"device-oven-1": oven_without_setpoint},
     )
-    with patch(
-        "custom_components.advanced_smartthings.async_build_api_client",
-        AsyncMock(return_value=fake_api),
+    with (
+        patch(
+            "custom_components.advanced_smartthings.async_build_api_client",
+            AsyncMock(return_value=fake_api),
+        ),
+        patch("custom_components.advanced_smartthings.coordinator.POST_COMMAND_REFRESH_DELAYS", ()),
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 
         with pytest.raises(HomeAssistantError, match="Set the oven temperature above 0"):
             await hass.services.async_call(
-                "button",
-                "press",
-                {"entity_id": "button.backofen_start_program"},
+                "switch",
+                "turn_on",
+                {"entity_id": "switch.backofen_running"},
                 blocking=True,
             )
 

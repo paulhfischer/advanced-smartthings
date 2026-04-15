@@ -95,11 +95,11 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
     async def _async_start_oven_program(self) -> None:
         self._require_remote_control_enabled()
 
-        raw_mode = self._current_oven_mode_raw()
-        if raw_mode in {None, "NoOperation"}:
+        raw_mode = self._preferred_oven_input_mode_raw()
+        if raw_mode is None:
             raise HomeAssistantError("Select an oven mode before starting the oven.")
 
-        spec = self._current_oven_mode_spec()
+        spec = self._oven_mode_spec_for(raw_mode) or self._current_oven_mode_spec()
         if not _supports_operation(spec, "start"):
             raise HomeAssistantError("The selected oven mode cannot be started from SmartThings.")
 
@@ -187,6 +187,17 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
 
         raise HomeAssistantError(
             failure_message or self._idle_start_failure_message(target=target, values=values)
+        )
+
+    async def _async_stop_oven_program(self) -> None:
+        self._require_remote_control_enabled()
+        component_id, capability, optimistic_updates = self._resolve_stop_target()
+        await self._async_send_command(
+            "stop",
+            [],
+            component_id=component_id,
+            capability=capability,
+            optimistic_updates=optimistic_updates,
         )
 
     def _resolve_oven_control_target(self, raw_mode: str) -> OvenControlTarget:
@@ -282,6 +293,25 @@ class AdvancedSmartThingsButtonEntity(AdvancedSmartThingsEntity, ButtonEntity):
             )
 
         raise HomeAssistantError("No supported SmartThings oven control component was found.")
+
+    def _resolve_stop_target(
+        self,
+    ) -> tuple[str, str, list[tuple[str, str, Sequence[str], Any]]]:
+        preferred_components = self._preferred_control_components()
+        for capability, path, value in (
+            ("ovenOperatingState", ("machineState", "value"), "ready"),
+            ("samsungce.ovenOperatingState", ("operatingState", "value"), "ready"),
+        ):
+            for component_id in preferred_components:
+                if not self._component_has_capability(component_id, capability):
+                    continue
+                optimistic_updates = [(component_id, capability, path, value)]
+                if component_id != self.entity_description.component_id:
+                    optimistic_updates.append(
+                        (self.entity_description.component_id, capability, path, value)
+                    )
+                return component_id, capability, optimistic_updates
+        raise HomeAssistantError("No supported SmartThings oven stop capability was found.")
 
     def _build_start_values(
         self,

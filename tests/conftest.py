@@ -52,6 +52,7 @@ OVEN_DEVICE = {
             "categories": [{"name": "Oven"}],
             "capabilities": [
                 {"id": "remoteControlStatus", "version": 1},
+                {"id": "temperatureMeasurement", "version": 1},
                 {"id": "samsungce.lamp", "version": 1},
                 {"id": "samsungce.kitchenModeSpecification", "version": 1},
                 {"id": "samsungce.kitchenDeviceDefaults", "version": 1},
@@ -157,6 +158,9 @@ OVEN_STATUS = {
             "remoteControlStatus": {
                 "remoteControlEnabled": {"value": "true"},
             },
+            "temperatureMeasurement": {
+                "temperature": {"value": 33, "unit": "C"},
+            },
             "samsungce.lamp": {
                 "brightnessLevel": {"value": "off"},
                 "supportedBrightnessLevel": {"value": ["off", "high"]},
@@ -188,20 +192,20 @@ OVEN_STATUS = {
                                 },
                             },
                             {
-                                "mode": "Conventional",
+                                "mode": "KeepWarm",
                                 "supportedOptions": {
                                     "temperature": {
                                         "C": {
                                             "min": 40,
-                                            "max": 250,
-                                            "default": 180,
+                                            "max": 120,
+                                            "default": 70,
                                             "resolution": 5,
                                         }
                                     },
                                     "operationTime": {
                                         "min": "00:05:00",
-                                        "max": "04:00:00",
-                                        "default": "00:45:00",
+                                        "max": "12:00:00",
+                                        "default": "01:00:00",
                                         "resolution": "00:05:00",
                                     },
                                 },
@@ -213,11 +217,13 @@ OVEN_STATUS = {
         },
         "cavity-01": {
             "samsungce.ovenMode": {
-                "supportedOvenModes": {"value": ["Convection", "Conventional"]},
+                "supportedOvenModes": {"value": ["Convection", "KeepWarm"]},
                 "ovenMode": {"value": "NoOperation"},
             },
             "samsungce.ovenOperatingState": {
                 "operationTime": {"value": "01:30:00"},
+                "operatingState": {"value": "ready"},
+                "ovenJobState": {"value": "ready"},
             },
             "ovenSetpoint": {
                 "ovenSetpoint": {"value": 180, "unit": "C"},
@@ -302,7 +308,7 @@ SAMSUNG_OVEN_MODE_DEFINITION = {
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["Convection", "Conventional", "NoOperation"],
+                            "enum": ["Convection", "KeepWarm", "NoOperation"],
                         },
                     }
                 },
@@ -315,7 +321,7 @@ SAMSUNG_OVEN_MODE_DEFINITION = {
                 {
                     "schema": {
                         "type": "string",
-                        "enum": ["Convection", "Conventional", "NoOperation"],
+                        "enum": ["Convection", "KeepWarm", "NoOperation"],
                     }
                 }
             ]

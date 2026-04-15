@@ -10,7 +10,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .capability_registry import (
     AdvancedSmartThingsSensorEntityDescription,
     coerce_numeric_value,
+    normalize_oven_mode,
     normalize_temperature_unit,
+    oven_mode_display_language,
+    parse_duration_minutes,
 )
 from .entity import AdvancedSmartThingsEntity
 
@@ -37,11 +40,17 @@ class AdvancedSmartThingsSensorEntity(AdvancedSmartThingsEntity, SensorEntity):
     @property
     def native_value(self) -> Any:
         raw_value = self._lookup_path(self.entity_description.value_path)
+        if self.entity_description.state_kind == "duration_minutes":
+            return parse_duration_minutes(raw_value)
         if self.entity_description.state_kind == "numeric":
             numeric = coerce_numeric_value(raw_value)
             if numeric is None:
                 return None
             return int(numeric) if numeric.is_integer() else numeric
+        if self.entity_description.translation_key == "oven_program":
+            return normalize_oven_mode(
+                raw_value, oven_mode_display_language(self.hass.config.language)
+            )
         return raw_value
 
     @property

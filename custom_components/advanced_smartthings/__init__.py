@@ -3,8 +3,17 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
+from homeassistant.helpers import entity_registry as er
+from homeassistant.util import slugify
 
 from .api import async_build_api_client
+from .capability_registry import (
+    AdvancedSmartThingsBinarySensorEntityDescription,
+    AdvancedSmartThingsNumberEntityDescription,
+    AdvancedSmartThingsSelectEntityDescription,
+    AdvancedSmartThingsSensorEntityDescription,
+    AdvancedSmartThingsSwitchEntityDescription,
+)
 from .const import CONF_SELECTED_DEVICE_IDS, PLATFORMS
 from .coordinator import AdvancedSmartThingsCoordinator, AdvancedSmartThingsRuntimeData
 from .discovery import build_device_catalog, parse_devices
@@ -56,6 +65,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await _async_migrate_entity_ids(hass, entry)
     return True
 
 
@@ -68,3 +78,46 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload the config entry when its options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def _async_migrate_entity_ids(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Rename existing entity registry entries to stable English object IDs."""
+    registry = er.async_get(hass)
+    desired_entity_ids: dict[str, str] = {}
+
+    for device in entry.runtime_data.devices.values():
+        device_slug = slugify(device.label)
+        for description in device.supported_entities:
+            object_id_suffix = getattr(description, "object_id_suffix", None)
+            if not object_id_suffix:
+                continue
+            platform = _platform_for_description(description)
+            desired_entity_ids[f"{device.device_id}_{description.key}"] = (
+                f"{platform}.{device_slug}_{object_id_suffix}"
+            )
+
+    for existing_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        desired_entity_id = desired_entity_ids.get(existing_entry.unique_id)
+        if desired_entity_id is None or desired_entity_id == existing_entry.entity_id:
+            continue
+        try:
+            registry.async_update_entity(
+                existing_entry.entity_id,
+                new_entity_id=desired_entity_id,
+            )
+        except ValueError:
+            continue
+
+
+def _platform_for_description(description) -> str:
+    if isinstance(description, AdvancedSmartThingsSensorEntityDescription):
+        return "sensor"
+    if isinstance(description, AdvancedSmartThingsBinarySensorEntityDescription):
+        return "binary_sensor"
+    if isinstance(description, AdvancedSmartThingsSwitchEntityDescription):
+        return "switch"
+    if isinstance(description, AdvancedSmartThingsNumberEntityDescription):
+        return "number"
+    if isinstance(description, AdvancedSmartThingsSelectEntityDescription):
+        return "select"
+    raise ValueError(f"Unsupported description type for entity migration: {type(description)!r}")

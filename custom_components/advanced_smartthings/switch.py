@@ -36,6 +36,9 @@ class AdvancedSmartThingsSwitchEntity(AdvancedSmartThingsEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
+        if self.entity_description.control_strategy == "oven_power":
+            return self._oven_is_running()
+
         raw_value = self._lookup_path(self.entity_description.state_path)
         bool_value = normalize_bool_value(raw_value)
         if bool_value is not None:
@@ -57,6 +60,10 @@ class AdvancedSmartThingsSwitchEntity(AdvancedSmartThingsEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         del kwargs
+        if self.entity_description.control_strategy == "oven_power":
+            await self._oven_control_helper()._async_start_oven_program()
+            return
+
         on_arguments = self._on_arguments()
         await self._async_send_command(
             self.entity_description.on_command,
@@ -73,6 +80,12 @@ class AdvancedSmartThingsSwitchEntity(AdvancedSmartThingsEntity, SwitchEntity):
 
     async def async_turn_off(self, **kwargs) -> None:
         del kwargs
+        if self.entity_description.control_strategy == "oven_power":
+            if self._oven_is_running() is False:
+                return
+            await self._oven_control_helper()._async_stop_oven_program()
+            return
+
         off_arguments = list(self.entity_description.off_arguments) or None
         await self._async_send_command(
             self.entity_description.off_command,
