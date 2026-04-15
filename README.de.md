@@ -126,4 +126,10 @@ pre-commit run --all-files
 
 ## Logo-/Branding-Hinweis
 
-Dieses Repository enthält kein SmartThings-Logo. Ob die Nutzung von SmartThings-Branding in diesem Projekt zulässig ist, wird nicht pauschal angenommen.
+Dieses Repository enthält jetzt offizielle SmartThings-Branding-Assets für das Home-Assistant-Integrationsbranding unter [custom_components/advanced_smartthings/brand](/Users/fischerp/Workspace/smartthings-oven-bridge/custom_components/advanced_smartthings/brand).
+
+Quelle:
+
+- SmartThings Brand Guidelines: [partners.smartthings.com/brand-guidelines](https://partners.smartthings.com/brand-guidelines)
+
+Diese Assets werden für das Branding der Home-Assistant-Custom-Integration verwendet und sollten weiterhin im Rahmen der SmartThings-Brand-Guidelines genutzt werden.

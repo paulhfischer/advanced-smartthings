@@ -126,4 +126,10 @@ pre-commit run --all-files
 
 ## Logo / branding note
 
-This repository does not ship a SmartThings logo asset. The legal/policy status for bundling SmartThings branding in this project is not assumed.
+This repository now includes official SmartThings branding assets for Home Assistant integration branding under [custom_components/advanced_smartthings/brand](/Users/fischerp/Workspace/smartthings-oven-bridge/custom_components/advanced_smartthings/brand).
+
+Source:
+
+- SmartThings Brand Guidelines: [partners.smartthings.com/brand-guidelines](https://partners.smartthings.com/brand-guidelines)
+
+These assets are used to brand the Home Assistant custom integration and should continue to follow SmartThings brand-guideline usage terms.
