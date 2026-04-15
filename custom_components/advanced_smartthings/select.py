@@ -9,6 +9,7 @@ from .capability_registry import (
     AdvancedSmartThingsSelectEntityDescription,
     denormalize_oven_mode,
     normalize_oven_mode,
+    oven_mode_display_language,
 )
 from .entity import AdvancedSmartThingsEntity
 
@@ -38,7 +39,7 @@ class AdvancedSmartThingsSelectEntity(AdvancedSmartThingsEntity, SelectEntity):
         if not isinstance(raw_value, str):
             return None
         if self.entity_description.translation_key == "oven_mode":
-            return normalize_oven_mode(raw_value)
+            return normalize_oven_mode(raw_value, self._oven_mode_language())
         return raw_value
 
     @property
@@ -56,8 +57,9 @@ class AdvancedSmartThingsSelectEntity(AdvancedSmartThingsEntity, SelectEntity):
             options = list(self.entity_description.fallback_options)
         if self.entity_description.translation_key == "oven_mode":
             mapped_options: list[str] = []
+            language = self._oven_mode_language()
             for option in options:
-                display = normalize_oven_mode(option)
+                display = normalize_oven_mode(option, language)
                 if display is not None and display not in mapped_options:
                     mapped_options.append(display)
             return mapped_options
@@ -68,5 +70,26 @@ class AdvancedSmartThingsSelectEntity(AdvancedSmartThingsEntity, SelectEntity):
             raise ValueError(f"Unsupported option {option!r} for {self.entity_id}")
         self._require_remote_control_enabled()
         if self.entity_description.translation_key == "oven_mode":
-            option = denormalize_oven_mode(option)
+            option = denormalize_oven_mode(
+                option,
+                language=self._oven_mode_language(),
+                raw_options=self._raw_oven_options(),
+            )
         await self._async_send_command(self.entity_description.command, [option])
+
+    def _raw_oven_options(self) -> list[str]:
+        raw_options = self._lookup_path(self.entity_description.options_path)
+        options = (
+            [value for value in raw_options if isinstance(value, str)]
+            if isinstance(raw_options, list)
+            else []
+        )
+        current_raw = self._lookup_path(self.entity_description.value_path)
+        if isinstance(current_raw, str) and current_raw not in options:
+            options.append(current_raw)
+        if not options:
+            options = list(self.entity_description.fallback_options)
+        return options
+
+    def _oven_mode_language(self) -> str:
+        return oven_mode_display_language(self.hass.config.language)

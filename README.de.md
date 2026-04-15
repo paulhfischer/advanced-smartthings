@@ -45,7 +45,7 @@ Home-Assistant-Benutzeroberflächen-Texte sind vorbereitet für:
 
 Das umfasst Konfigurationsdialoge, Fehler-/Abbruchtexte, Optionen und Entitätsnamen.
 
-Dynamische SmartThings-Werte wie Backofen-Modi werden von SmartThings übernommen und nicht zwangsläufig von dieser Integration lokalisiert.
+Backofen-Modi werden anhand der Home-Assistant-Systemsprache auf Englisch oder Deutsch dargestellt, sofern eine bekannte Zuordnung existiert. Unbekannte SmartThings-Modi werden als lesbare Fallback-Bezeichnung angezeigt.
 
 ## Installation
 

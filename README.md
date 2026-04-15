@@ -45,7 +45,7 @@ Home Assistant user-facing strings are prepared for:
 
 This includes config-flow labels, abort/error text, options-flow labels, and entity names.
 
-Dynamic SmartThings values such as oven mode names are passed through from SmartThings and may not be localized by this integration.
+Oven mode labels are rendered in English or German based on the Home Assistant system language when a known mapping exists. Unknown SmartThings mode names fall back to a readable label.
 
 ## Installation
 

@@ -90,6 +90,50 @@ async def test_setup_entry_creates_supported_native_entities(
         await hass.async_block_till_done()
 
 
+async def test_oven_mode_uses_home_assistant_system_language(
+    hass,
+    mock_config_entry,
+) -> None:
+    hass.config.language = "de"
+    mock_config_entry.add_to_hass(hass)
+
+    fake_api = _fake_api(
+        [OVEN_DEVICE],
+        {
+            "device-oven-1": OVEN_STATUS,
+        },
+    )
+    with patch(
+        "custom_components.advanced_smartthings.async_build_api_client",
+        AsyncMock(return_value=fake_api),
+    ):
+        assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+        oven_mode = hass.states.get("select.backofen_backmodus")
+        assert oven_mode is not None
+        assert oven_mode.state == "Aus"
+        assert "Umluft" in oven_mode.attributes["options"]
+
+        await hass.services.async_call(
+            "select",
+            "select_option",
+            {"entity_id": "select.backofen_backmodus", "option": "Umluft"},
+            blocking=True,
+        )
+
+        fake_api.async_send_command.assert_any_await(
+            "device-oven-1",
+            "cavity-01",
+            "samsungce.ovenMode",
+            "setOvenMode",
+            ["Convection"],
+        )
+
+        assert await hass.config_entries.async_unload(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+
 async def test_oven_writes_are_blocked_when_remote_control_is_disabled(
     hass,
 ) -> None:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -23,7 +25,47 @@ AttributePath = tuple[str, ...]
 TruthValue = bool | None
 NumberRange = tuple[float, float, float, bool]
 
-OVEN_MODE_DISPLAY_MAP = {"NoOperation": "Off"}
+OVEN_MODE_TRANSLATIONS: dict[str, dict[str, str]] = {
+    "NoOperation": {"en": "Off", "de": "Aus"},
+    "Convection": {"en": "Convection", "de": "Umluft"},
+    "Conventional": {"en": "Conventional", "de": "Ober-/Unterhitze"},
+    "Bake": {"en": "Bake", "de": "Backen"},
+    "Bottom": {"en": "Bottom Heat", "de": "Unterhitze"},
+    "BottomHeat": {"en": "Bottom Heat", "de": "Unterhitze"},
+    "BottomConvection": {"en": "Bottom Convection", "de": "Unterhitze + Umluft"},
+    "TopConvection": {"en": "Top Convection", "de": "Oberhitze + Umluft"},
+    "Broil": {"en": "Broil", "de": "Grill"},
+    "LargeGrill": {"en": "Large Grill", "de": "Großer Grill"},
+    "SmallGrill": {"en": "Small Grill", "de": "Kleiner Grill"},
+    "EcoGrill": {"en": "Eco Grill", "de": "Eco-Grill"},
+    "Defrost": {"en": "Defrost", "de": "Auftauen"},
+    "KeepWarm": {"en": "Keep Warm", "de": "Warmhalten"},
+    "WarmHold": {"en": "Warm Hold", "de": "Warmhalten"},
+    "Proof": {"en": "Proof", "de": "Gärstufe"},
+    "BreadProof": {"en": "Bread Proof", "de": "Teig gehen lassen"},
+    "ProveDough": {"en": "Prove Dough", "de": "Teig gehen lassen"},
+    "SteamCook": {"en": "Steam Cook", "de": "Dampfgaren"},
+    "SteamBake": {"en": "Steam Bake", "de": "Dampfbacken"},
+    "SteamRoast": {"en": "Steam Roast", "de": "Dampfbraten"},
+    "SteamConvection": {"en": "Steam Convection", "de": "Dampfumluft"},
+    "SteamBottomConvection": {
+        "en": "Steam Bottom Convection",
+        "de": "Unterhitze + Dampf + Umluft",
+    },
+    "SteamTopConvection": {"en": "Steam Top Convection", "de": "Oberhitze + Dampf + Umluft"},
+    "Autocook": {"en": "Auto Cook", "de": "Automatikprogramm"},
+    "Drain": {"en": "Drain", "de": "Entleeren"},
+    "Descale": {"en": "Descale", "de": "Entkalken"},
+    "Dehydrate": {"en": "Dehydrate", "de": "Dörren"},
+    "Pizza": {"en": "Pizza", "de": "Pizza"},
+    "Roast": {"en": "Roast", "de": "Braten"},
+    "Roasting": {"en": "Roasting", "de": "Braten"},
+    "AirFry": {"en": "Air Fry", "de": "Heißluftfrittieren"},
+    "AirFryer": {"en": "Air Fry", "de": "Heißluftfrittieren"},
+    "HotBlast": {"en": "Hot Blast", "de": "Heißluft"},
+    "PureConvection": {"en": "Pure Convection", "de": "Reine Umluft"},
+    "PowerConvection": {"en": "Power Convection", "de": "Power-Umluft"},
+}
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -203,19 +245,47 @@ def normalize_temperature_unit(raw_value: Any) -> str | None:
     return raw_value
 
 
-def normalize_oven_mode(raw_value: Any) -> str | None:
+def normalize_oven_mode(raw_value: Any, language: str = "en") -> str | None:
     """Map raw SmartThings oven modes to user-facing select options."""
     if not isinstance(raw_value, str) or not raw_value:
         return None
-    return OVEN_MODE_DISPLAY_MAP.get(raw_value, raw_value)
+    language = _normalize_language(language)
+    translations = OVEN_MODE_TRANSLATIONS.get(raw_value)
+    if translations is not None:
+        return translations.get(language, translations["en"])
+    return _humanize_oven_mode(raw_value)
 
 
-def denormalize_oven_mode(option: str) -> str:
+def denormalize_oven_mode(
+    option: str,
+    *,
+    language: str = "en",
+    raw_options: Sequence[str] | None = None,
+) -> str:
     """Map a displayed oven mode back to the SmartThings raw value."""
-    for raw_mode, display_mode in OVEN_MODE_DISPLAY_MAP.items():
-        if option == display_mode:
+    language = _normalize_language(language)
+    for raw_mode in raw_options or OVEN_MODE_TRANSLATIONS:
+        if normalize_oven_mode(raw_mode, language) == option:
             return raw_mode
     return option
+
+
+def oven_mode_display_language(language: str | None) -> str:
+    """Return the supported display language for oven mode labels."""
+    return _normalize_language(language)
+
+
+def _normalize_language(language: str | None) -> str:
+    if isinstance(language, str) and language.casefold().startswith("de"):
+        return "de"
+    return "en"
+
+
+def _humanize_oven_mode(raw_value: str) -> str:
+    spaced = raw_value.replace("_", " ").replace("+", " + ")
+    spaced = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", spaced)
+    spaced = re.sub(r"(?<=[A-Za-z])(?=[0-9])", " ", spaced)
+    return re.sub(r"\s+", " ", spaced).strip()
 
 
 def _build_oven_descriptions(

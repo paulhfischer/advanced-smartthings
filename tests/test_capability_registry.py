@@ -7,6 +7,8 @@ from custom_components.advanced_smartthings.capability_registry import (
     AdvancedSmartThingsSensorEntityDescription,
     AdvancedSmartThingsSwitchEntityDescription,
     build_entity_descriptions,
+    denormalize_oven_mode,
+    normalize_oven_mode,
 )
 from custom_components.advanced_smartthings.discovery import parse_devices
 
@@ -75,3 +77,23 @@ def test_build_entity_descriptions_for_supported_v1_appliances() -> None:
 
     assert len(cooktop_descriptions) == 1
     assert isinstance(cooktop_descriptions[0], AdvancedSmartThingsBinarySensorEntityDescription)
+
+
+def test_oven_mode_labels_support_english_and_german() -> None:
+    assert normalize_oven_mode("NoOperation", "en") == "Off"
+    assert normalize_oven_mode("NoOperation", "de") == "Aus"
+    assert normalize_oven_mode("Convection", "en") == "Convection"
+    assert normalize_oven_mode("Convection", "de") == "Umluft"
+    assert normalize_oven_mode("BottomConvection", "de") == "Unterhitze + Umluft"
+    assert normalize_oven_mode("SteamCook", "de") == "Dampfgaren"
+    assert normalize_oven_mode("AirFry", "de") == "Heißluftfrittieren"
+    assert normalize_oven_mode("PowerConvectionCombi", "en") == "Power Convection Combi"
+
+    assert (
+        denormalize_oven_mode(
+            "Umluft",
+            language="de",
+            raw_options=["Convection", "Conventional"],
+        )
+        == "Convection"
+    )
