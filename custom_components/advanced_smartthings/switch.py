@@ -57,16 +57,34 @@ class AdvancedSmartThingsSwitchEntity(AdvancedSmartThingsEntity, SwitchEntity):
 
     async def async_turn_on(self, **kwargs) -> None:
         del kwargs
+        on_arguments = self._on_arguments()
         await self._async_send_command(
             self.entity_description.on_command,
-            self._on_arguments(),
+            on_arguments,
+            optimistic_updates=[
+                (
+                    self.entity_description.component_id,
+                    self.entity_description.capability,
+                    self.entity_description.state_path,
+                    on_arguments[0] if on_arguments else "on",
+                )
+            ],
         )
 
     async def async_turn_off(self, **kwargs) -> None:
         del kwargs
+        off_arguments = list(self.entity_description.off_arguments) or None
         await self._async_send_command(
             self.entity_description.off_command,
-            list(self.entity_description.off_arguments) or None,
+            off_arguments,
+            optimistic_updates=[
+                (
+                    self.entity_description.component_id,
+                    self.entity_description.capability,
+                    self.entity_description.state_path,
+                    off_arguments[0] if off_arguments else "off",
+                )
+            ],
         )
 
     def _on_arguments(self) -> list[Any] | None:

@@ -271,6 +271,12 @@ async def test_writable_entities_send_explicit_commands(
             blocking=True,
         )
 
+        assert hass.states.get("select.backofen_oven_mode").state == "Convection"
+        assert hass.states.get("number.backofen_timer").state == "45.0"
+        assert hass.states.get("number.backofen_temperature").state == "200.0"
+        assert hass.states.get("switch.backofen_lamp").state == "on"
+        assert hass.states.get("number.kuhlschrank_refrigerator_temperature").state == "4.0"
+
         fake_api.async_send_command.assert_any_await(
             "device-oven-1",
             "cavity-01",

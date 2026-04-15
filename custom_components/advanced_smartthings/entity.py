@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from copy import deepcopy
 from typing import Any
 
 from homeassistant.exceptions import HomeAssistantError
@@ -88,7 +89,13 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
             current = current.get(key)
         return current
 
-    async def _async_send_command(self, command: str, arguments: list[Any] | None = None) -> None:
+    async def _async_send_command(
+        self,
+        command: str,
+        arguments: list[Any] | None = None,
+        *,
+        optimistic_updates: Sequence[tuple[str, str, Sequence[str], Any]] = (),
+    ) -> None:
         await self.coordinator.api.async_send_command(
             self._device.device_id,
             self.entity_description.component_id,
@@ -96,7 +103,9 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
             command,
             arguments,
         )
-        await self.coordinator.async_request_refresh()
+        if optimistic_updates:
+            self._apply_optimistic_updates(optimistic_updates)
+        self.coordinator.async_schedule_post_command_refresh()
 
     def _remote_control_enabled(self) -> bool | None:
         raw_value = self._lookup_path(
@@ -111,3 +120,37 @@ class AdvancedSmartThingsEntity(CoordinatorEntity[AdvancedSmartThingsCoordinator
             return
         if self._remote_control_enabled() is False:
             raise HomeAssistantError("Remote control is disabled for this oven.")
+
+    def _apply_optimistic_updates(
+        self,
+        updates: Sequence[tuple[str, str, Sequence[str], Any]],
+    ) -> None:
+        if self._device.device_id not in self.coordinator.data:
+            return
+
+        updated_data = deepcopy(self.coordinator.data)
+        device_status = updated_data.get(self._device.device_id)
+        if not isinstance(device_status, dict):
+            return
+
+        for component_id, capability, path, value in updates:
+            components = device_status.setdefault("components", {})
+            if not isinstance(components, dict):
+                continue
+            component = components.setdefault(component_id, {})
+            if not isinstance(component, dict):
+                continue
+            capability_payload = component.setdefault(capability, {})
+            if not isinstance(capability_payload, dict):
+                continue
+
+            current: Any = capability_payload
+            for key in path[:-1]:
+                next_value = current.get(key)
+                if not isinstance(next_value, dict):
+                    next_value = {}
+                    current[key] = next_value
+                current = next_value
+            current[path[-1]] = value
+
+        self.coordinator.async_set_updated_data(updated_data)

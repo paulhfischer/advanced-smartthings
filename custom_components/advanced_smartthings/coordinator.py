@@ -11,7 +11,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import SmartThingsApiClient
-from .const import DEFAULT_SCAN_INTERVAL
+from .const import DEFAULT_SCAN_INTERVAL, POST_COMMAND_REFRESH_DELAYS
 from .discovery import DiscoveredDevice
 from .exceptions import SmartThingsApiError, SmartThingsConnectionError
 
@@ -43,6 +43,7 @@ class AdvancedSmartThingsCoordinator(DataUpdateCoordinator[dict[str, dict[str, A
         self.api = api
         self.devices = devices
         self.config_entry = entry
+        self._post_command_refresh_task: asyncio.Task[None] | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         try:
@@ -65,3 +66,30 @@ class AdvancedSmartThingsCoordinator(DataUpdateCoordinator[dict[str, dict[str, A
                 raise UpdateFailed(str(result)) from result
             data[device_id] = result
         return data
+
+    def async_schedule_post_command_refresh(self) -> None:
+        """Schedule a short burst of refreshes after a command."""
+        if self._post_command_refresh_task and not self._post_command_refresh_task.done():
+            self._post_command_refresh_task.cancel()
+        self._post_command_refresh_task = self.hass.async_create_task(
+            self._async_post_command_refresh_burst()
+        )
+
+    async def async_shutdown(self) -> None:
+        """Cancel outstanding background refresh work."""
+        if self._post_command_refresh_task and not self._post_command_refresh_task.done():
+            self._post_command_refresh_task.cancel()
+            try:
+                await self._post_command_refresh_task
+            except asyncio.CancelledError:
+                pass
+
+    async def _async_post_command_refresh_burst(self) -> None:
+        try:
+            for delay in POST_COMMAND_REFRESH_DELAYS:
+                await asyncio.sleep(delay)
+                await self.async_request_refresh()
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # pragma: no cover - defensive logging around background tasks
+            self.logger.debug("Post-command SmartThings refresh burst failed", exc_info=True)

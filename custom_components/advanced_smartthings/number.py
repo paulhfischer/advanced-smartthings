@@ -67,14 +67,34 @@ class AdvancedSmartThingsNumberEntity(AdvancedSmartThingsEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         self._require_remote_control_enabled()
         if self.entity_description.value_kind == "duration_minutes":
+            formatted_value = format_duration_minutes(value)
             await self._async_send_command(
                 self.entity_description.command,
-                [format_duration_minutes(value)],
+                [formatted_value],
+                optimistic_updates=[
+                    (
+                        self.entity_description.component_id,
+                        self.entity_description.capability,
+                        self.entity_description.value_path,
+                        formatted_value,
+                    )
+                ],
             )
             return
 
         command_value: float | int = int(value) if self.entity_description.cast_to_int else value
-        await self._async_send_command(self.entity_description.command, [command_value])
+        await self._async_send_command(
+            self.entity_description.command,
+            [command_value],
+            optimistic_updates=[
+                (
+                    self.entity_description.component_id,
+                    self.entity_description.capability,
+                    self.entity_description.value_path,
+                    command_value,
+                )
+            ],
+        )
 
     def _number_range_value(self, *, index: int) -> float | None:
         range_values = self._resolved_range()

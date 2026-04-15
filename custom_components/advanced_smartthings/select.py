@@ -75,7 +75,18 @@ class AdvancedSmartThingsSelectEntity(AdvancedSmartThingsEntity, SelectEntity):
                 language=self._oven_mode_language(),
                 raw_options=self._raw_oven_options(),
             )
-        await self._async_send_command(self.entity_description.command, [option])
+        await self._async_send_command(
+            self.entity_description.command,
+            [option],
+            optimistic_updates=[
+                (
+                    self.entity_description.component_id,
+                    self.entity_description.capability,
+                    self.entity_description.value_path,
+                    option,
+                )
+            ],
+        )
 
     def _raw_oven_options(self) -> list[str]:
         raw_options = self._lookup_path(self.entity_description.options_path)
